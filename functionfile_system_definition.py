@@ -1,4 +1,5 @@
 import numpy as np
+import networkx as netx
 from copy import deepcopy as dc
 import pickle
 
@@ -17,18 +18,23 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, label_in=None):
+def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, W_in=None, label_in=None):
     A = dc(A_in)
     nx = np.shape(A)[0]
 
     if B_in is None:
         B = np.zeros((nx, nx))
-        print('Control input matrix not given')
+        print('Control input matrix not given - assumed no controller')
     else:
         if np.ndim(B_in) == 1:
-            B = actuator_matrix(B_in, nx)
+            B = actuator_list_to_matrix(B_in, nx)
         elif np.ndim(B_in) == 2:
             B = dc(B_in)
+            if np.shape(B)[0] != np.shape(A)[0]:
+                print('Check control input matrix size')
+                return None
+            elif np.shape(B)[1] != np.shape(A)[1]:
+                B = np.pad(B, ((0, 0), (0, np.shape(A)[1]-np.shape(B)[1])), 'constant')
         else:
             print('Check control input matrix')
             return None
@@ -42,7 +48,7 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
     if alphai_in is None:
         alphai = [0]
         Ai = np.expand_dims(np.zeros_like(A), axis=0)
-        print('Actuator noise matrix not specified')
+        print('Actuator noise matrix not specified - assumed 0')
     else:
         alphai = dc(alphai_in)
         if Ai_in is None:
@@ -54,11 +60,12 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
                 Ai = dc(Ai_in)
             else:
                 print('Check actuator noise matrix')
+                return None
 
     if betaj_in is None:
         betaj = [0]
         Bj = np.expand_dims(np.zeros_like(B), axis=0)
-        print('Control noise matrix not specified')
+        print('Control noise matrix not specified - assumed 0')
     else:
         betaj = dc(betaj_in)
         if Bj_in is None:
@@ -70,6 +77,7 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
                 Bj = dc(Bj_in)
             else:
                 print('Check control noise matrix')
+                return None
 
     if Q_in is None:
         Q = np.identity(nx)
@@ -81,13 +89,38 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
     else:
         R1 = dc(R1_in)
 
-    sys = {'A': A, 'B': B, 'label': label}
+    if X0_in is None:
+        print('No initial state specified')
+        X0 = np.zeros(nx)
+        metric = 0
+    elif np.ndim(X0_in) == 1:
+        print('Initial state vector specified')
+        X0 = dc(X0_in)
+        metric = 1
+    elif np.ndim(X0_in) == 2:
+        print('Initial state distribution specified')
+        X0 = dc(X0_in)
+        metric = 2
+    else:
+        print('Check initial state distribution')
+        return None
+
+    if W_in is None:
+        print('No additive noise')
+        W = np.zeros_like(A)
+    elif np.ndim(W_in) == 2:
+        W = dc(W_in)
+    else:
+        print('Check input noise matrix')
+        return None
+
+    sys = {'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric, 'W': W, 'label': label}
     return sys
 
 
 #######################################################
 
-def actuator_matrix(B_in, nx):
+def actuator_list_to_matrix(B_in, nx):
     B = np.zeros((nx, nx))
     for i in range(0, len(B_in)):
         B[B_in[i], i] = 1
@@ -97,19 +130,36 @@ def actuator_matrix(B_in, nx):
 
 #######################################################
 
-def sys_to_file(sys_in, f_name='sys_model'):
+def actuator_random_selection(nx_in, nu_in):
+    nx = dc(nx_in)
+    nu = dc(nu_in)
+
+    B_list = np.random.default_rng().choice(range(0, nx), nu)
+    B = actuator_list_to_matrix(B_list, nx)
+
+    return_values = {'B': B, 'B_list': B_list}
+    return return_values
+
+
+#######################################################
+
+def sys_to_file(sys_in, f_name=None):
     sys = dc(sys_in)
+
+    if f_name is None:
+        f_name = sys['label']
+
     f_name = 'system_model/' + f_name + '.pickle'
     try:
         f_open = open(f_name, 'wb')
     except:
         print('File not writable')
-        return
+        return None
 
     pickle.dump(sys, f_open)
     f_open.close()
     print('System saved to file @', f_name)
-    return
+    return None
 
 
 #######################################################
@@ -120,7 +170,7 @@ def sys_from_file(f_name='sys_model'):
         f_open = open(f_name, 'rb')
     except:
         print('File not readable')
-        return
+        return None
 
     sys = pickle.load(f_open)
     f_open.close()
@@ -135,7 +185,7 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
 
     nx = np.shape(sys['A'])[0]
     nu = np.shape(sys['B'])[1]
-    nv = np.shape(sys['F'])[1]
+    # nv = np.shape(sys['F'])[1]
 
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 4, figure=fig1)
@@ -149,24 +199,26 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    ax2 = fig1.add_subplot(gs1[1, 0])
-    a2 = ax2.imshow(actuator_matrix(sys['B'], nx), extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
-    ax2.set_title(r'$B$')
-    plt.colorbar(a2, ax=ax2, location='bottom')
-    ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    if np.sum(sys['B']) == 0:
+        ax2 = fig1.add_subplot(gs1[1, 0])
+        a2 = ax2.imshow(sys['B'], extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
+        ax2.set_title(r'$B$')
+        plt.colorbar(a2, ax=ax2, location='bottom')
+        ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+        ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    ax3 = fig1.add_subplot(gs1[2, 0])
-    a3 = ax3.imshow(actuator_matrix(sys['F'], nx), extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-    ax3.set_title(r'$F$')
-    plt.colorbar(a3, ax=ax3, location='bottom')
-    ax3.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax3.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    # ax3 = fig1.add_subplot(gs1[2, 0])
+    # a3 = ax3.imshow(actuator_list_to_matrix(sys['F'], nx), extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
+    # ax3.set_title(r'$F$')
+    # plt.colorbar(a3, ax=ax3, location='bottom')
+    # ax3.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    # ax3.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
     net_alpha = np.sum(sys['alphai'])
     net_beta = np.sum(sys['betaj'])
-    net_gamma = np.sum(sys['gammak'])
-    if net_alpha+net_beta+net_gamma > 0:
+    # net_gamma = np.sum(sys['gammak'])
+    # if net_alpha+net_beta+net_gamma > 0:
+    if net_alpha + net_beta > 0:
         ax4 = fig1.add_subplot(gs1[0, 1])
         ax4_col = 0
 
@@ -196,20 +248,21 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
             ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
             ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-        if net_gamma != 0:
-            a4 = ax4.scatter(range(1, len(sys['gammak']) + 1), sys['gammak'], c='C1', marker='3', alpha=0.8, label=r'$\gamma_k$')
-            ax4_col += 1
-            Fk_net = np.zeros_like(sys['F'])
-            for k in range(0, len(sys['gammak'])):
-                Fk_net += sys['Fk'][k, :, :]*sys['gammak'][k] #/ net_gamma
-            ax7 = fig1.add_subplot(gs1[2, 2])
-            a7 = ax7.imshow(Fk_net, extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-            plt.colorbar(a7, ax=ax7, location='bottom')
-            ax7.set_title(r'$\sum \gamma_k F_k$')
-            ax7.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-            ax7.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+        # if net_gamma != 0:
+        #     a4 = ax4.scatter(range(1, len(sys['gammak']) + 1), sys['gammak'], c='C1', marker='3', alpha=0.8, label=r'$\gamma_k$')
+        #     ax4_col += 1
+        #     Fk_net = np.zeros_like(sys['F'])
+        #     for k in range(0, len(sys['gammak'])):
+        #         Fk_net += sys['Fk'][k, :, :]*sys['gammak'][k] #/ net_gamma
+        #     ax7 = fig1.add_subplot(gs1[2, 2])
+        #     a7 = ax7.imshow(Fk_net, extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
+        #     plt.colorbar(a7, ax=ax7, location='bottom')
+        #     ax7.set_title(r'$\sum \gamma_k F_k$')
+        #     ax7.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+        #     ax7.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-        ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']), len(sys['gammak']))))
+        # ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']), len(sys['gammak']))))
+        ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']))))
         ax4.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
         ax4.legend(markerfirst=False, framealpha=0.2, handlelength=1, labelspacing=0.4, columnspacing=0.5, ncol=ax4_col)
         ax4.set_title('MPL Covariances')
@@ -228,20 +281,20 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
     ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    ax12 = fig1.add_subplot(gs1[2, 3])
-    a12 = ax12.imshow(sys['R2'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-    ax12.set_title(r'$R_2$')
-    plt.colorbar(a12, ax=ax12, location='bottom')
-    ax12.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax12.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    # ax12 = fig1.add_subplot(gs1[2, 3])
+    # a12 = ax12.imshow(sys['R2'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
+    # ax12.set_title(r'$R_2$')
+    # plt.colorbar(a12, ax=ax12, location='bottom')
+    # ax12.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    # ax12.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
-        ax13 = fig1.add_subplot(gs1[1, 1])
-        a13 = ax13.imshow(sys['W'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-        ax13.set_title(r'$W$')
-        plt.colorbar(a13, ax=ax13, location='bottom')
-        ax13.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-        ax13.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    # if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
+    #     ax13 = fig1.add_subplot(gs1[1, 1])
+    #     a13 = ax13.imshow(sys['W'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
+    #     ax13.set_title(r'$W$')
+    #     plt.colorbar(a13, ax=ax13, location='bottom')
+    #     ax13.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    #     ax13.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
     if imgtitle is not None:
         fig1.suptitle(imgtitle)
@@ -259,3 +312,40 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
 
 
 #######################################################
+
+def create_graph(nx_in, type='cycle', p=None, self_loop=True):
+    nx = dc(nx_in)
+    net_check = True
+
+    while net_check:
+        if type == 'cycle':
+            G = netx.generators.classic.cycle_graph(nx)
+        elif type == 'path':
+            G = netx.generators.classic.path_graph(nx)
+        elif type == 'ER':
+            if p is None:
+                print('Specify edge probability for ER-graph')
+                return None
+            else:
+                G = netx.generators.random_graphs.erdos_renyi_graph(nx, p)
+        else:
+            print('Check network type')
+            return None
+        if netx.algorithms.components.is_connected(G):
+            net_check = False
+
+    A = netx.to_numpy_array(G)
+    if self_loop:
+        A += np.identity(nx)
+
+    e = np.max(np.abs(np.linalg.eigvals(A)))
+    A /= e
+
+    return_values = {'A': A, 'eig_max': e}
+    return return_values
+
+
+#####################################################
+
+if __name__ == "__main__":
+    print('Successfully compiled function file for system definition')

@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import MaxNLocator
 
-from functionfile_system_definition import actuator_matrix
-
 matplotlib.rcParams['axes.titlesize'] = 10
 matplotlib.rcParams['xtick.labelsize'] = 8
 matplotlib.rcParams['ytick.labelsize'] = 8
@@ -19,9 +17,11 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in, T=30, P_max=(10**10)):
+def initial_values_init(sys_in, T=100, P_max=(10**10)):
 
     return_values = {'T': T, 'P_max': P_max}
+    # T: max time steps of Riccati iterations
+    # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
     return return_values
 
 
@@ -51,8 +51,16 @@ def cost_function_1(sys_in, initial_values=None):
     P_check = 1
     t = 0
 
+    # W_sum = np.zeros_like(sys['W'])
+    # W = dc(sys['W'])
+    # if np.allclose(W, W_sum):
+    #     W_check = False
+
     while P_check == 1:
         t += 1
+
+        # if not W_check:
+        #     W_sum += np.trace(P @ W)
 
         A_sum = np.zeros_like(A)
         if np.sum(alphai) != 0:
@@ -76,12 +84,52 @@ def cost_function_1(sys_in, initial_values=None):
             P_check = 2
             break
 
-        if np.max(np.linalg.eigvals(P_new))>initial_values['P_max']:
+        if np.max(np.linalg.eigvals(P_new)) > initial_values['P_max']:
             P_check = 3
             break
 
-    return_values = {'P_mat': P, 't': t, 'P_check': P_check}
+    J = None
+    if sys['metric'] == 0:
+        J = np.trace(P)
+    elif sys['metric'] == 1:
+        J = sys['X0'].T @ P @ sys['X0']
+    elif sys['metric'] == 2:
+        J = np.trace(P @ sys['X0'])
+
+    return_values = {'P_mat': P, 'J': J, 't': t, 'P_check': P_check}
+    # P_mat: cost matrix at convergence or failure
+    # J: value of cost function at convergence or failure depending on the metric/initial state conditions
+    # t: time of convergence or failure
+    # P_check: 0 if converged, 2 if time exceeded, 3 if cost exceeded
     return return_values
 
 
 ################################################################
+
+def actuator_selection_cost_1(sys_in, nu_max_in=None, initial_values=None):
+    sys = dc(sys_in)
+
+    B = sys['B']
+    B_list = []
+    nu_1 = None
+    for i in range(0,np.shape(B)[1]):
+        idx = np.argmax(B[:, i])
+        if B[idx, i] > 0:
+            nu_1 = i
+            if idx in B_list:
+                print('Duplicate actuators assigned')
+                return None
+            B_list.append(idx)
+
+    cost_record = []
+    time_record = []
+
+
+
+
+
+
+################################################################
+
+if __name__ == "__main__":
+    print('Successfully compiled function file for system cost evaluation')
