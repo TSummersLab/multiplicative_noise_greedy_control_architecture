@@ -120,12 +120,26 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
 
 #######################################################
 
-def actuator_list_to_matrix(B_in, nx):
+def actuator_list_to_matrix(B_list, nx):
     B = np.zeros((nx, nx))
-    for i in range(0, len(B_in)):
-        B[B_in[i], i] = 1
+    for i in range(0, len(B_list)):
+        B[B_list[i], i] = 1
 
     return B
+
+
+#######################################################
+
+def actuator_matrix_to_list(B_in):
+    B_list = []
+    B = dc(B_in)
+
+    for i in range(0, np.shape(B)[1]):
+        idx = np.argmax(B[:, i])
+        if B[idx, i]!=0:
+            B_list.append(idx)
+
+    return B_list
 
 
 #######################################################
@@ -180,7 +194,7 @@ def sys_from_file(f_name='sys_model'):
 
 #######################################################
 
-def system_display_matrix(sys_in, fname=None, imgtitle=None):
+def system_display_matrix(sys_in, fname=None):
     sys = dc(sys_in)
 
     nx = np.shape(sys['A'])[0]
@@ -199,7 +213,7 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    if np.sum(sys['B']) == 0:
+    if np.sum(sys['B']) > 0:
         ax2 = fig1.add_subplot(gs1[1, 0])
         a2 = ax2.imshow(sys['B'], extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
         ax2.set_title(r'$B$')
@@ -296,16 +310,18 @@ def system_display_matrix(sys_in, fname=None, imgtitle=None):
     #     ax13.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     #     ax13.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    if imgtitle is not None:
-        fig1.suptitle(imgtitle)
-    elif sys['label'] is not None:
-        fig1.suptitle(sys['label'])
+    # if imgtitle is not None:
+    #     fig1.suptitle(imgtitle)
+    # elif sys['label'] is not None:
+    #     fig1.suptitle(sys['label'])
 
-    if fname is not None:
-        try:
-            plt.savefig(fname+'.eps', format='eps')
-        except:
-            print('Incorrect save name/directory')
+    if fname is None:
+        fname = sys['label']
+
+    try:
+        plt.savefig('images/'+fname+'_system.pdf', format='pdf')
+    except:
+        print('Incorrect save name/directory')
     plt.show()
 
     return None
