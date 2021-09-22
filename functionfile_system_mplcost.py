@@ -23,6 +23,7 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
         X0 = None
         alpha_sim = None
         beta_sim = None
+        w_sim = None
 
     else:
         sys = dc(sys_in)
@@ -41,7 +42,11 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
         if np.sum(sys['betaj']) > 0:
             beta_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['betaj'])), cov=np.diag(sys['betaj']), size=T)
 
-    return_values = {'T': T, 'P_max': P_max, 'alphai': alpha_sim, 'betaj': beta_sim, 'X0': X0}
+        w_sim = np.zeros((T, np.shape(sys['W'])[0]))
+        if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
+            w_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['W'])[0]), cov=sys['W'], size=T)
+
+    return_values = {'T': T, 'P_max': P_max, 'alphai': alpha_sim, 'betaj': beta_sim, 'w': w_sim, 'X0': X0}
     # T: max time steps of Riccati iterations
     # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
     # alphai: simulated state-dependent noise
@@ -267,7 +272,7 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
             else:
                 B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
     # B = np.pad(B, ((0,0),(1,0)), 'constant')
-    # print(B)
+    print(B)
     for i in range(0, np.shape(B)[1]):
         if check[i] == 0:
             ax3.scatter(i*np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0')
@@ -278,6 +283,7 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
     ax3.set_ylabel('Actuated Node')
 
     if fname is not None:
+        fig1.suptitle(fname)
         fname = 'images/'+fname+'_selection.pdf'
         plt.savefig(fname, format='pdf')
 
@@ -294,7 +300,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
     if initial_values is None:
         initial_values = initial_values_init(sys)
 
-    K = feedback['K']
+    K = dc(feedback['K'])
 
     nx = np.shape(sys['A'])[0]
     nu = np.shape(sys['B'])[1]
@@ -303,6 +309,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
     T_sim = initial_values['T']
     alpha_sim = initial_values['alphai']
     beta_sim = initial_values['betaj']
+    w_sim = initial_values['w']
 
     A = sys['A']
     B = sys['B']
@@ -336,7 +343,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
             for j in range(0, np.shape(beta_sim)[1]):
                 dyn_noise += beta_sim[t, j] * (Bj[j, :, :] @ K)
 
-        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) #+ w_sim[t, :]
+        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) + w_sim[t, :]
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
@@ -366,8 +373,9 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
         sys_true['metric'] = 1
 
     ret1 = cost_function_1(sys_model, initial_values, feedback=True)
-    feedback = {'K': ret1['K']}
-    ret2 = simulation_core(sys_true, feedback, initial_values)
+    model_feedback = {'K': dc(ret1['K'])}
+    print('Gain (K):\n', model_feedback['K'])
+    ret2 = simulation_core(sys_true, model_feedback, initial_values)
 
     return_values = {'states': ret2['states'], 'costs': ret2['costs'], 'control': ret2['control']}
     return return_values
@@ -403,17 +411,20 @@ def simulation_actuator_selection(sys_model_in, sys_true_in, initial_values=None
         sys_model_test = dc(sys_model)
         sys_true_test = dc(sys_true)
 
-        B_test = actuator_list_to_matrix(list(B_list[i:i+1]), nx)
+        B_test = actuator_list_to_matrix(list(B_list[0:i+1]), nx)
+        # print('B_test:\n', B_test)
         sys_model_test['B'] = dc(B_test)
         sys_true_test['B'] = dc(B_test)
 
-        if np.sum(sys_model_test['betaj'])>0:
+        if np.sum(sys_model_test['betaj']) > 0:
             for j in range(0, len(sys_model_test['betaj'])):
                 sys_model_test['Bj'][j, :, :] = dc(B_test)
-        if np.sum(sys_true_test['betaj'])>0:
+        if np.sum(sys_true_test['betaj']) > 0:
             for j in range(0, len(sys_true_test['betaj'])):
                 sys_true_test['Bj'][j, :, :] = dc(B_test)
 
+        # print('Model sys:\n', sys_model_test)
+        # print('True sys:\n', sys_true_test)
         test_return = simulation_wrapper(sys_model_test, sys_true_test, initial_values)
         states[str(i+1)] = test_return['states']
         costs[str(i+1)] = test_return['costs']
@@ -462,6 +473,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
             ax2.plot(T_range, display_data['costs'][i], color='C'+i, label=i)
         ax2.set_xlabel(r'$t$')
         ax2.set_ylabel(r'$J^*$')
+        ax2.set_yscale('log')
         ax2.legend(ncol=3)
 
     if 'control' in display_data:
@@ -472,8 +484,8 @@ def plot_simulation(display_data=None, T=None, fname=None):
         ax3.set_ylabel(r'$u_t$')
 
     if fname is not None:
-        fname = 'images/'+fname+'_simulation.pdf'
-        plt.savefig(fname, format='pdf')
+        fig1.suptitle(fname)
+        plt.savefig('images/'+fname+'_simulation.pdf', format='pdf')
 
     plt.show()
 

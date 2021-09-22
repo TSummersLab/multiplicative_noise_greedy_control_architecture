@@ -105,16 +105,17 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
         print('Check initial state distribution')
         return None
 
-    if W_in is None:
-        print('No additive noise')
-        W = np.zeros_like(A)
-    elif np.ndim(W_in) == 2:
-        W = dc(W_in)
-    else:
-        print('Check input noise matrix')
-        return None
+    # if W_in is None:
+    #     print('No additive noise')
+    #     W = np.zeros_like(A)
+    # elif np.ndim(W_in) == 2:
+    #     W = dc(W_in)
+    # else:
+    #     print('Check input noise matrix')
+    #     return None
+    W = np.zeros_like(A)
 
-    sys = {'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric, 'W': W, 'label': label}
+    sys = {'label': label, 'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric, 'W': W}
     return sys
 
 
@@ -167,12 +168,12 @@ def sys_to_file(sys_in, f_name=None):
     try:
         f_open = open(f_name, 'wb')
     except:
-        print('File not writable')
+        print('File not writable\n')
         return None
 
     pickle.dump(sys, f_open)
     f_open.close()
-    print('System saved to file @', f_name)
+    print('System saved to file @', f_name,'\n')
     return None
 
 
@@ -183,12 +184,12 @@ def sys_from_file(f_name='sys_model'):
     try:
         f_open = open(f_name, 'rb')
     except:
-        print('File not readable')
+        print('File not readable\n')
         return None
 
     sys = pickle.load(f_open)
     f_open.close()
-    print('System read from file @', f_name)
+    print('System read from file @', f_name,'\n')
     return sys
 
 
@@ -350,14 +351,14 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
         if netx.algorithms.components.is_connected(G):
             net_check = False
 
-    A = netx.to_numpy_array(G)
+    Adj = netx.to_numpy_array(G)
     if self_loop:
-        A += np.identity(nx)
+        Adj += np.identity(nx)
 
-    e = np.max(np.abs(np.linalg.eigvals(A)))
-    A /= e
+    e = np.max(np.abs(np.linalg.eigvals(Adj)))
+    A = Adj/e
 
-    return_values = {'A': A, 'eig_max': e}
+    return_values = {'A': A, 'eig_max': e, 'Adj': Adj}
     return return_values
 
 
