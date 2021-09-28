@@ -18,12 +18,12 @@ matplotlib.rcParams['text.usetex'] = True
 
 
 def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
-
+    return_values = {'T': T, 'P_max': P_max}
     if sys_in is None:
-        X0 = None
-        alpha_sim = None
-        beta_sim = None
-        w_sim = None
+        return_values['X0'] = None
+        return_values['alphai'] = None
+        return_values['betaj'] = None
+        return_values['w'] = None
 
     else:
         sys = dc(sys_in)
@@ -33,20 +33,26 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
             X0 = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['A'])[0]), cov=sys['X0'])
         else:
             X0 = dc(sys['X0'])
+        return_values['X0'] = X0
 
         alpha_sim = np.zeros((T, len(sys['alphai'])))
         if np.sum(sys['alphai']) > 0:
             alpha_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['alphai'])), cov=np.diag(sys['alphai']), size=T)
+        return_values['alphai'] = alpha_sim
 
         beta_sim = np.zeros((T, len(sys['betaj'])))
         if np.sum(sys['betaj']) > 0:
             beta_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['betaj'])), cov=np.diag(sys['betaj']), size=T)
+        return_values['betaj'] = beta_sim
 
-        w_sim = np.zeros((T, np.shape(sys['W'])[0]))
-        if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
-            w_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['W'])[0]), cov=sys['W'], size=T)
+        # w_sim = np.zeros((T, np.shape(sys['W'])[0]))
+        # if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
+        #     w_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['W'])[0]), cov=sys['W'], size=T)
+        # return_values['w'] = w_sim
+        w_sim = np.zeros((T, np.shape(sys['A'])[0]))
+        return_values['w'] = w_sim
 
-    return_values = {'T': T, 'P_max': P_max, 'alphai': alpha_sim, 'betaj': beta_sim, 'w': w_sim, 'X0': X0}
+
     # T: max time steps of Riccati iterations
     # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
     # alphai: simulated state-dependent noise
@@ -57,7 +63,7 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
 
 #################################################################
 
-def cost_function_1(sys_in, initial_values=None, feedback=False):
+def cost_function_1(sys_in, initial_values=None):
     sys = dc(sys_in)
 
     A = dc(sys['A'])
@@ -128,12 +134,11 @@ def cost_function_1(sys_in, initial_values=None, feedback=False):
             break
 
     K = np.zeros((np.shape(B)[1], np.shape(A)[0]))
-    if feedback:
-        B_sum = np.zeros_like(B)
-        if np.sum(betaj) != 0:
-            for j in range(0, len(betaj)):
-                B_sum += betaj[j] * (Bj[j, :, :].T @ P @ Bj[j, :, :])
-        K = -np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A
+    B_sum = np.zeros_like(B)
+    if np.sum(betaj) != 0:
+        for j in range(0, len(betaj)):
+            B_sum += betaj[j] * (Bj[j, :, :].T @ P @ Bj[j, :, :])
+    K = -np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A
 
     return_values = {'P_mat': P, 'J_trend': J_rec, 't': t, 'P_check': P_check, 'K': K}
     # P_mat: cost matrix at convergence or failure
@@ -372,7 +377,7 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
         sys_true['X0'] = dc(initial_values['X0'])
         sys_true['metric'] = 1
 
-    ret1 = cost_function_1(sys_model, initial_values, feedback=True)
+    ret1 = cost_function_1(sys_model, initial_values)
     model_feedback = {'K': dc(ret1['K'])}
     print('Gain (K):\n', model_feedback['K'])
     ret2 = simulation_core(sys_true, model_feedback, initial_values)
