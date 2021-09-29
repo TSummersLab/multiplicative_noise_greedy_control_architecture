@@ -149,7 +149,7 @@ def actuator_random_selection(nx_in, nu_in):
     nx = dc(nx_in)
     nu = dc(nu_in)
 
-    B_list = np.random.default_rng().choice(range(0, nx), nu)
+    B_list = np.random.default_rng().choice(range(0, nx), nu, replace=False)
     B = actuator_list_to_matrix(B_list, nx)
 
     return_values = {'B': B, 'B_list': B_list}
