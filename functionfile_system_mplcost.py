@@ -379,7 +379,7 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
 
     ret1 = cost_function_1(sys_model, initial_values)
     model_feedback = {'K': dc(ret1['K'])}
-    print('Gain (K):\n', model_feedback['K'])
+    # print('Gain (K):\n', model_feedback['K'])
     ret2 = simulation_core(sys_true, model_feedback, initial_values)
 
     return_values = {'states': ret2['states'], 'costs': ret2['costs'], 'control': ret2['control']}
