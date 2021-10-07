@@ -18,7 +18,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None):
+def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, W_in=None, label_in=None):
     A = dc(A_in)
     nx = np.shape(A)[0]
 
@@ -105,61 +105,19 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
         print('Check initial state distribution')
         return None
 
-    sys = {'label': label, 'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric}
+    # if W_in is None:
+    #     print('No additive noise')
+    #     W = np.zeros_like(A)
+    # elif np.ndim(W_in) == 2:
+    #     W = dc(W_in)
+    # else:
+    #     print('Check input noise matrix')
+    #     return None
+    W = np.zeros_like(A)
+
+    sys = {'label': label, 'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric, 'W': W}
     return sys
 
-
-#######################################################
-
-def system_check(sys_in=None, print_message=False):
-    # Dimension check for system dynamics and cost parameters
-    # Return dictionary with ['check']=1 if dimensions are OKAY, 0 otherwise
-    # Print success check if print_message is True
-
-    if sys_in is None:
-        print('No system given')
-        return None
-
-    sys = dc(sys_in)
-
-    check = 1
-
-    nx = np.shape(sys['A'])[0]
-    nu = np.shape(sys['B'])[1]
-
-    if np.shape(sys['Q']) != (nx, nx):
-        print('Incorrect Q dimension - expected:(', nx, ', ', nx, ') | got:', np.shape(sys['Q']))
-        check = 0
-
-    if np.shape(sys['R1']) != (nu, nu):
-        print('Incorrect R1 dimension - expected:(', nu, ', ', nu, ') | got:', np.shape(sys['R1']))
-        check = 0
-
-    n_alpha = len(sys['alphai'])
-    n_beta = len(sys['betaj'])
-
-    if np.shape(sys['Ai']) != (n_alpha, nx, nx):
-        print('Incorrect Ai dimensions - expected:(', n_alpha, ',', nx, ', ', nx, ') | got:', np.shape(sys['Ai']))
-        check = 0
-
-    if np.shape(sys['Bj']) != (n_beta, nu, nu):
-        print('Incorrect Bj dimensions - expected:(', n_beta, ',', nu, ', ', nu, ') | got:', np.shape(sys['Bj']))
-        check = 0
-
-    if np.ndim(sys['X0']) == 1 and np.shape(sys['X0']) != (nx,):
-        print('Incorrect X0 - expected:(', nx, ',', ') | got:', np.shape(sys['X0']))
-        check = 0
-    elif np.ndim(sys['X0']) == 2 and np.shape(sys['X0']) != (nx, nx):
-        print('Incorrect X0 - expected:(', nx, ',', nx, ') | got:', np.shape(sys['X0']))
-        check = 0
-
-    if not check:
-        print('System error')
-    elif print_message:
-        print('System check - OKAY')
-
-    return_value = {'check': check}
-    return return_value
 
 #######################################################
 
