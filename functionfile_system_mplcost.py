@@ -17,7 +17,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**10)):
+def initial_values_init(sys_in=None, T=200, P_max=(10**5)):
     return_values = {'T': T, 'P_max': P_max}
     if sys_in is None:
         return_values['X0'] = None
