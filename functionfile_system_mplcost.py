@@ -17,7 +17,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**5), P_min=(10**(-8))):
+def initial_values_init(sys_in=None, T=200, P_max=(10**10), P_min=(10**(-8))):
     return_values = {'T': T, 'P_max': P_max, 'P_min': P_min}
     if sys_in is None:
         return_values['X0'] = None
@@ -92,15 +92,21 @@ def cost_function_1(sys_in, initial_values=None):
 
         A_sum = np.zeros_like(A)
         if np.sum(alphai) != 0:
+            # print('Using alphai')
             for i in range(0, len(alphai)):
                 A_sum += alphai[i] * (Ai[i, :, :].T @ P @ Ai[i, :, :])
+        # else:
+        #     print('NOT using alphai')
 
         B_sum = np.zeros_like(B)
         if np.sum(betaj) != 0:
+            # print('Using betaj')
             for j in range(0, len(betaj)):
                 B_sum += betaj[j] * (Bj[j, :, :].T @ P @ Bj[j, :, :])
+        # else:
+        #     print('NOT using betaj')
 
-        P_new = Q + (A.T @ P @ A) - (A.T @ P @ B @ np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A)
+        P_new = Q + (A.T @ P @ A) + A_sum - (A.T @ P @ B @ np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A)
 
         if np.allclose(P_new, P, atol=initial_values['P_min']):
             P_check = 0
@@ -116,7 +122,6 @@ def cost_function_1(sys_in, initial_values=None):
             P_check = 3
             break
 
-    K = np.zeros((np.shape(B)[1], np.shape(A)[0]))
     B_sum = np.zeros_like(B)
     if np.sum(betaj) != 0:
         for j in range(0, len(betaj)):
@@ -328,10 +333,10 @@ def plot_actuator_selection_2(values, fname=None):
             cost_check0[i] = values[str(i)]['cost']
             time_check0[i] = values[str(i)]['time']
 
-    print('cost_check0', cost_check0)
-    print('cost_check1', cost_check1)
-    print('time_check0', time_check0)
-    print('time_check1', time_check1)
+    # print('cost_check0', cost_check0)
+    # print('cost_check1', cost_check1)
+    # print('time_check0', time_check0)
+    # print('time_check1', time_check1)
 
     ax1.scatter(x_range, cost_check0, marker='x', color='C0')
     ax1.scatter(x_range, cost_check1, marker='x', color='C1')
@@ -350,7 +355,7 @@ def plot_actuator_selection_2(values, fname=None):
                 B[j, i] = np.nan
             else:
                 B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
-    print(B)
+    # print(B)
     for i in range(0, np.shape(B)[1]):
         if values[str(i)]['check']:
             ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1')
@@ -362,6 +367,97 @@ def plot_actuator_selection_2(values, fname=None):
 
     if fname is None:
         fname = values['label']
+
+    fig1.suptitle(fname)
+    fname = 'images/'+fname+'_selection.pdf'
+    plt.savefig(fname, format='pdf')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def plot_actuator_selection_comparison_1(values1, values2, fname=None):
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+
+    n_vals = len(values1)-2
+    B1 = dc(values1['B'])
+    B2 = dc(values2['B'])
+    x_range = list(range(0, n_vals))
+    cost_check0 = np.nan * np.ones((n_vals, 2))
+    cost_check1 = np.nan * np.ones((n_vals, 2))
+    time_check0 = np.nan * np.ones((n_vals, 2))
+    time_check1 = np.nan * np.ones((n_vals, 2))
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+
+    for i in range(0, 1 + np.shape(B1)[1]):
+        if values1[str(i)]['check']:
+            cost_check1[i, 0] = values1[str(i)]['cost']
+            time_check1[i, 0] = values1[str(i)]['time']
+        else:
+            cost_check0[i, 0] = values1[str(i)]['cost']
+            time_check0[i, 0] = values1[str(i)]['time']
+
+        if values2[str(i)]['check']:
+            cost_check1[i, 1] = values2[str(i)]['cost']
+            time_check1[i, 1] = values2[str(i)]['time']
+        else:
+            cost_check0[i, 1] = values2[str(i)]['cost']
+            time_check0[i, 1] = values2[str(i)]['time']
+
+    # print('cost_check0', cost_check0)
+    # print('cost_check1', cost_check1)
+    # print('time_check0', time_check0)
+    # print('time_check1', time_check1)
+
+    ax1.scatter(x_range, cost_check0[:, 0], marker='x', color='C0', alpha=0.5, label=values1['label'])
+    ax1.scatter(x_range, cost_check1[:, 0], marker='x', color='C1', alpha=0.5, label=values1['label'])
+    ax1.scatter(x_range, cost_check0[:, 1], marker='o', color='C2', alpha=0.5, label=values2['label'])
+    ax1.scatter(x_range, cost_check1[:, 1], marker='o', color='C3', alpha=0.5, label=values2['label'])
+    ax1.set_xlabel(r'$|S|$')
+    ax1.set_ylabel(r'$J^*$')
+    ax1.legend()
+
+    ax2.scatter(x_range, time_check0[:, 0], marker='x', color='C0', alpha=0.5)
+    ax2.scatter(x_range, time_check1[:, 0], marker='x', color='C1', alpha=0.5)
+    ax2.scatter(x_range, time_check0[:, 1], marker='o', color='C2', alpha=0.5)
+    ax2.scatter(x_range, time_check1[:, 1], marker='o', color='C3', alpha=0.5)
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel(r'$t$')
+
+    B1 = np.pad(B1, ((0, 0), (1, 0)), 'constant')
+    B2 = np.pad(B2, ((0, 0), (1, 0)), 'constant')
+    for i in range(0, np.shape(B1)[1]):
+        for j in range(0, np.shape(B1)[0]):
+            if B1[j, i] == 0:
+                B1[j, i] = np.nan
+            else:
+                B1[j, i:np.shape(B1)[1]] = (j+1)*np.ones(np.shape(B1)[1]-i)
+            if B2[j, i] == 0:
+                B2[j, i] = np.nan
+            else:
+                B2[j, i:np.shape(B2)[1]] = (j+1)*np.ones(np.shape(B2)[1]-i)
+    # print(B)
+    for i in range(0, np.shape(B1)[1]):
+        if values1[str(i)]['check']:
+            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='x', color='C1', alpha=0.5)
+        else:
+            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='x', color='C0', alpha=0.5)
+        if values2[str(i)]['check']:
+            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='o', color='C3', alpha=0.5)
+        else:
+            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='o', color='C2', alpha=0.5)
+    ax3.invert_yaxis()
+    ax3.set_xlabel(r'$|S|$')
+    # ax3.set_ylabel('Actuated Node')
+
+    if fname is None:
+        fname = values1['label'] + ' vs ' + values2['label']
 
     fig1.suptitle(fname)
     fname = 'images/'+fname+'_selection.pdf'
@@ -388,7 +484,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
     T_sim = initial_values['T']
     alpha_sim = initial_values['alphai']
     beta_sim = initial_values['betaj']
-    w_sim = initial_values['w']
+    # w_sim = initial_values['w']
 
     A = sys['A']
     B = sys['B']
@@ -422,7 +518,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
             for j in range(0, np.shape(beta_sim)[1]):
                 dyn_noise += beta_sim[t, j] * (Bj[j, :, :] @ K)
 
-        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) + w_sim[t, :]
+        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) #+ w_sim[t, :]
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
@@ -545,7 +641,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'states' in display_data:
         ax1 = fig1.add_subplot(gs1[0, 0])
         for i in display_data['states']:
-            ax1.plot(T_range, display_data['states'][i], color='C'+i, label=i)
+            ax1.plot(T_range, display_data['states'][i], color='C'+i, alpha=0.3, label=i)
         ax1.set_xlabel(r'$t$')
         ax1.set_ylabel(r'$x_t$')
 
