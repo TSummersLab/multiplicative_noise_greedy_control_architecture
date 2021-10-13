@@ -1,12 +1,12 @@
 import numpy as np
 from copy import deepcopy as dc
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check
 
 import matplotlib
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.gridspec import GridSpec
-from matplotlib.ticker import MaxNLocator
+# from matplotlib.ticker import MaxNLocator
 
 matplotlib.rcParams['axes.titlesize'] = 10
 matplotlib.rcParams['xtick.labelsize'] = 8
@@ -17,19 +17,18 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**5)):
-    return_values = {'T': T, 'P_max': P_max}
+def initial_values_init(sys_in=None, T=200, P_max=(10**5), P_min=(10**(-8))):
+    return_values = {'T': T, 'P_max': P_max, 'P_min': P_min}
     if sys_in is None:
         return_values['X0'] = None
         return_values['alphai'] = None
         return_values['betaj'] = None
-        return_values['w'] = None
-
     else:
+
         sys = dc(sys_in)
 
         if sys['X0'].ndim == 2:
-            print('Generating random sample of initial state from given distribution for simulation')
+            # print('Generating random sample of initial state from given distribution for simulation')
             X0 = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['A'])[0]), cov=sys['X0'])
         else:
             X0 = dc(sys['X0'])
@@ -44,14 +43,6 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**5)):
         if np.sum(sys['betaj']) > 0:
             beta_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['betaj'])), cov=np.diag(sys['betaj']), size=T)
         return_values['betaj'] = beta_sim
-
-        # w_sim = np.zeros((T, np.shape(sys['W'])[0]))
-        # if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
-        #     w_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(np.shape(sys['W'])[0]), cov=sys['W'], size=T)
-        # return_values['w'] = w_sim
-        w_sim = np.zeros((T, np.shape(sys['A'])[0]))
-        return_values['w'] = w_sim
-
 
     # T: max time steps of Riccati iterations
     # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
@@ -89,11 +80,6 @@ def cost_function_1(sys_in, initial_values=None):
 
     J_rec = []
 
-    # W_sum = np.zeros_like(sys['W'])
-    # W = dc(sys['W'])
-    # if np.allclose(W, W_sum):
-    #     W_check = False
-
     while P_check == 1:
         t += 1
 
@@ -103,9 +89,6 @@ def cost_function_1(sys_in, initial_values=None):
             J_rec.append(sys['X0'].T @ P @ sys['X0'])
         elif sys['metric'] == 2:
             J_rec.append(np.trace(P @ sys['X0']))
-
-        # if not W_check:
-        #     W_sum += np.trace(P @ W)
 
         A_sum = np.zeros_like(A)
         if np.sum(alphai) != 0:
@@ -119,7 +102,7 @@ def cost_function_1(sys_in, initial_values=None):
 
         P_new = Q + (A.T @ P @ A) - (A.T @ P @ B @ np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A)
 
-        if np.allclose(P_new, P):
+        if np.allclose(P_new, P, atol=initial_values['P_min']):
             P_check = 0
             break
         else:
@@ -187,9 +170,6 @@ def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
         print('Empty selection list of actuators')
         return None
 
-    # print(B_list)
-    # print(S_list)
-
     for i in range(nu_1, nu_2):
         # print('i:', i)
         cost_list = []
@@ -211,13 +191,11 @@ def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
             check_list.append(test_ret['P_check'])
 
         idx = np.argmin(cost_list)
+        if check_list[idx] != 0:
+            idx = np.argmax(time_list)
         check_record.append(check_list[idx])
         cost_record.append(cost_list[idx])
         time_record.append(time_list[idx])
-        if check_list[idx] != 0:
-            idx = np.argmax(time_list)
-            check_record[-1] = check_list[idx]
-            cost_record[-1] = np.nan
         B[B_list[idx], i] = 1
         B_list.remove(B_list[idx])
 
@@ -292,6 +270,102 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
         fname = 'images/'+fname+'_selection.pdf'
         plt.savefig(fname, format='pdf')
 
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def estimation_actuator_selection(sys_in, B_in=None, initial_values=None):
+
+    sys = dc(sys_in)
+
+    if not (B_in is None):
+        sys['B'] = dc(B_in)
+
+    if initial_values is None:
+        initial_values = initial_values_init(sys)
+
+    return_values = {'label': dc(sys['label']), 'B': sys['B']}
+
+    for i in range(0, 1 + np.shape(sys['B'])[1]):
+        sys_test = dc(sys)
+        sys_test['B'] = np.zeros_like(sys['B'])
+        sys_test['B'][:, 0:i] = dc(sys['B'][:, 0:i])
+        if system_check(sys_test)['check']:
+            # print(i, '\n', sys_test['B'])
+            test_ret = cost_function_1(sys_test, initial_values)
+            return_values[str(i)] = {'check': test_ret['P_check'], 'cost': test_ret['J_trend'][-1], 'time': test_ret['t']}
+
+    # return dictionary: key is number of actuators
+    return return_values
+
+
+################################################################
+
+def plot_actuator_selection_2(values, fname=None):
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+
+    n_vals = len(values)-2
+    B = dc(values['B'])
+    x_range = list(range(0, n_vals))
+    cost_check0 = np.nan * np.ones(n_vals)
+    cost_check1 = np.nan * np.ones(n_vals)
+    time_check0 = np.nan * np.ones(n_vals)
+    time_check1 = np.nan * np.ones(n_vals)
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+
+    for i in range(0, 1 + np.shape(B)[1]):
+        if values[str(i)]['check']:
+            cost_check1[i] = values[str(i)]['cost']
+            time_check1[i] = values[str(i)]['time']
+        else:
+            cost_check0[i] = values[str(i)]['cost']
+            time_check0[i] = values[str(i)]['time']
+
+    print('cost_check0', cost_check0)
+    print('cost_check1', cost_check1)
+    print('time_check0', time_check0)
+    print('time_check1', time_check1)
+
+    ax1.scatter(x_range, cost_check0, marker='x', color='C0')
+    ax1.scatter(x_range, cost_check1, marker='x', color='C1')
+    ax1.set_xlabel(r'$|S|$')
+    ax1.set_ylabel(r'$J^*$')
+
+    ax2.scatter(x_range, time_check0, marker='x', color='C0')
+    ax2.scatter(x_range, time_check1, marker='x', color='C1')
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel(r'$t$')
+
+    B = np.pad(B, ((0, 0), (1, 0)), 'constant')
+    for i in range(0, np.shape(B)[1]):
+        for j in range(0, np.shape(B)[0]):
+            if B[j, i] == 0:
+                B[j, i] = np.nan
+            else:
+                B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
+    print(B)
+    for i in range(0, np.shape(B)[1]):
+        if values[str(i)]['check']:
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1')
+        else:
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0')
+    ax3.invert_yaxis()
+    ax3.set_xlabel(r'$|S|$')
+    # ax3.set_ylabel('Actuated Node')
+
+    if fname is None:
+        fname = values['label']
+
+    fig1.suptitle(fname)
+    fname = 'images/'+fname+'_selection.pdf'
+    plt.savefig(fname, format='pdf')
     plt.show()
 
     return None
@@ -460,6 +534,9 @@ def plot_simulation(display_data=None, T=None, fname=None):
             s = 'costs'
         elif 'control' in display_data:
             s = 'control'
+        else:
+            print('Error')
+            return None
         for i in display_data[s]:
             T = np.shape(display_data[s][i])[0]
             break
