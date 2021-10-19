@@ -46,6 +46,7 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**10), P_min=(10**(-8))):
 
     # T: max time steps of Riccati iterations
     # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
+    # P_min: tolerance of convergence of cost matrices using np.all_close()
     # alphai: simulated state-dependent noise
     # betaj: simulated input-dependent noise
     # X0: initial state simulated if distribution provided
@@ -133,6 +134,7 @@ def cost_function_1(sys_in, initial_values=None):
     # J_trend: value of cost function over iterations till failure or convergence
     # t: time of convergence or failure
     # P_check: 0 if converged, 2 if time exceeded, 3 if cost exceeded
+    # K: control feedback gain for u = Kx
     return return_values
 
 
@@ -470,6 +472,7 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
 ################################################################
 
 def simulation_core(sys_in, feedback, initial_values=None):
+    # feedback: dictionary of feedback values {'K': control gain} - constant gain over horizon
     sys = dc(sys_in)
 
     if initial_values is None:
@@ -484,7 +487,6 @@ def simulation_core(sys_in, feedback, initial_values=None):
     T_sim = initial_values['T']
     alpha_sim = initial_values['alphai']
     beta_sim = initial_values['betaj']
-    # w_sim = initial_values['w']
 
     A = sys['A']
     B = sys['B']
@@ -518,7 +520,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
             for j in range(0, np.shape(beta_sim)[1]):
                 dyn_noise += beta_sim[t, j] * (Bj[j, :, :] @ K)
 
-        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) #+ w_sim[t, :]
+        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :])
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
@@ -539,15 +541,18 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
     sys_true = dc(sys_true_in)
 
     if initial_values is None:
-        initial_values = initial_values_init(sys_true_in)
+        initial_values = initial_values_init(sys_true)
 
-        sys_model['X0'] = dc(initial_values['X0'])
-        sys_model['metric'] = 1
-
+    # Update true system initial state covariance with realization
+    # Check if true system cannot be simulated - no initial state vector/distribution provided
+    if np.ndim(sys_true['X0']) == 2:
         sys_true['X0'] = dc(initial_values['X0'])
         sys_true['metric'] = 1
+    elif np.allclose(sys_true['X0'], np.zeros_like(sys_true['X0'])) or sys_true['metric'] == 0:
+        print('No initial state vector or distribution for true system provided - cannot run simulation')
+        return None
 
-    ret1 = cost_function_1(sys_model, initial_values)
+    ret1 = cost_function_1(sys_model)
     model_feedback = {'K': dc(ret1['K'])}
     # print('Gain (K):\n', model_feedback['K'])
     ret2 = simulation_core(sys_true, model_feedback, initial_values)
@@ -565,11 +570,12 @@ def simulation_actuator_selection(sys_model_in, sys_true_in, initial_values=None
     if initial_values is None:
         initial_values = initial_values_init(sys_true_in)
 
-        sys_model['X0'] = dc(initial_values['X0'])
-        sys_model['metric'] = 1
-
+    if np.ndim(sys_true['X0']) == 2:
         sys_true['X0'] = dc(initial_values['X0'])
         sys_true['metric'] = 1
+    elif np.allclose(sys_true['X0'], np.zeros_like(sys_true['X0'])) or sys_true['metric'] == 0:
+        print('No initial state vector or distribution for true system provided - cannot run simulation')
+        return None
 
     if np.shape(sys_model['B']) != np.shape(sys_true['B']):
         print('Controllers are not the same structure')
