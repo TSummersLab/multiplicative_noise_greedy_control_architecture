@@ -418,16 +418,17 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
     # print('time_check1', time_check1)
 
     ax1.scatter(x_range, cost_check0[:, 0], marker='x', color='C0', alpha=0.5, label=values1['label'])
-    ax1.scatter(x_range, cost_check1[:, 0], marker='x', color='C1', alpha=0.5, label=values1['label'])
-    ax1.scatter(x_range, cost_check0[:, 1], marker='o', color='C2', alpha=0.5, label=values2['label'])
+    ax1.scatter(x_range, cost_check1[:, 0], marker='x', color='C2', alpha=0.5, label=values1['label'])
+    ax1.scatter(x_range, cost_check0[:, 1], marker='o', color='C1', alpha=0.5, label=values2['label'])
     ax1.scatter(x_range, cost_check1[:, 1], marker='o', color='C3', alpha=0.5, label=values2['label'])
+    ax1.set_yscale('log')
     ax1.set_xlabel(r'$|S|$')
     ax1.set_ylabel(r'$J^*$')
     ax1.legend()
 
     ax2.scatter(x_range, time_check0[:, 0], marker='x', color='C0', alpha=0.5)
-    ax2.scatter(x_range, time_check1[:, 0], marker='x', color='C1', alpha=0.5)
-    ax2.scatter(x_range, time_check0[:, 1], marker='o', color='C2', alpha=0.5)
+    ax2.scatter(x_range, time_check1[:, 0], marker='x', color='C2', alpha=0.5)
+    ax2.scatter(x_range, time_check0[:, 1], marker='o', color='C1', alpha=0.5)
     ax2.scatter(x_range, time_check1[:, 1], marker='o', color='C3', alpha=0.5)
     ax2.set_xlabel(r'$|S|$')
     ax2.set_ylabel(r'$t$')
@@ -447,13 +448,13 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
     # print(B)
     for i in range(0, np.shape(B1)[1]):
         if values1[str(i)]['check']:
-            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='x', color='C1', alpha=0.5)
+            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='x', color='C2', alpha=0.5)
         else:
             ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='x', color='C0', alpha=0.5)
         if values2[str(i)]['check']:
             ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='o', color='C3', alpha=0.5)
         else:
-            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='o', color='C2', alpha=0.5)
+            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='o', color='C1', alpha=0.5)
     ax3.invert_yaxis()
     ax3.set_xlabel(r'$|S|$')
     # ax3.set_ylabel('Actuated Node')
