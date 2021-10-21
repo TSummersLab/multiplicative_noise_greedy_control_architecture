@@ -719,8 +719,8 @@ def plot_simulation_nom_vs_mpl_1(values, fname=None):
     for key in Nom_values['states']:
         # ax1.plot(T_range, Nom_values['states'][key], marker='o', alpha=0.5, color='C'+key)
         # ax1.plot(T_range, MPL_values['states'][key], marker='x', alpha=0.5, color='C'+key)
-        ax1.plot(T_range, Nom_values['states'][key], ls=':', alpha=0.5, color='C' + key)
-        ax1.plot(T_range, MPL_values['states'][key], ls='-.', alpha=0.5, color='C' + key)
+        ax1.plot(T_range, Nom_values['states'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax1.plot(T_range, MPL_values['states'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
     ax1.set_xlabel(r'$t$')
     ax1.set_ylabel(r'$x_t$')
 
@@ -728,8 +728,8 @@ def plot_simulation_nom_vs_mpl_1(values, fname=None):
     for key in Nom_values['control']:
         # ax2.plot(T_range, Nom_values['control'][key], marker='o', alpha=0.5, color='C'+key)
         # ax2.plot(T_range, MPL_values['control'][key], marker='x', alpha=0.5, color='C'+key)
-        ax2.plot(T_range, Nom_values['control'][key], ls=':', alpha=0.5, color='C' + key)
-        ax2.plot(T_range, MPL_values['control'][key], ls='-.', alpha=0.5, color='C' + key)
+        ax2.plot(T_range, Nom_values['control'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax2.plot(T_range, MPL_values['control'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
     ax2.set_xlabel(r'$t$')
     ax2.set_ylabel(r'$u_t$')
 
@@ -737,14 +737,14 @@ def plot_simulation_nom_vs_mpl_1(values, fname=None):
     for key in Nom_values['costs']:
         # ax3.plot(T_range, Nom_values['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
         # ax3.plot(T_range, MPL_values['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
-        ax3.plot(T_range, Nom_values['costs'][key], ls=':', alpha=0.5, color='C' + key)
-        ax3.plot(T_range, MPL_values['costs'][key], ls='-.', alpha=0.5, color='C' + key)
+        ax3.plot(T_range, Nom_values['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='Nom:'+key)
+        ax3.plot(T_range, MPL_values['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='MPL:'+key)
         # ax3.plot(T_range, Nom_values['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax3.plot(T_range, MPL_values['costs'][key], alpha=0.5, color='C' + key)
     ax3.set_xlabel(r'$t$')
     ax3.set_ylabel(r'$J_t$')
     ax3.set_yscale('log')
-
+    ax3.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
     plt.show()
 
     return None
@@ -764,8 +764,8 @@ def plot_simulation_nom_vs_mpl_2(values, fname=None):
 
     ax1 = fig1.add_subplot(gs1[0, 0])
     for key in Nom_values['costs']:
-        ax1.plot(T_range, Nom_values['costs'][key], ls=':', alpha=0.5, color='C' + key)
-        ax1.plot(T_range, MPL_values['costs'][key], ls='-.', alpha=0.5, color='C' + key)
+        ax1.plot(T_range, Nom_values['costs'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax1.plot(T_range, MPL_values['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
         # ax1.plot(T_range, Nom_values['costs'][key], marker='o', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, MPL_values['costs'][key], marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, Nom_values['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
@@ -776,10 +776,10 @@ def plot_simulation_nom_vs_mpl_2(values, fname=None):
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     for key in Nom_values['costs']:
-        ax2.plot(T_range, Nom_values['costs'][key]-MPL_values['costs'][key], alpha=0.7, color='C'+key, label=key)
+        ax2.plot(T_range, Nom_values['costs'][key]-MPL_values['costs'][key], alpha=0.5, color='C'+key, label=key)
     ax2.set_xlabel(r'$t$')
     ax2.set_ylabel(r'$J_t$ (Nominal - MPL feedback)')
-    ax2.legend(ncol=3)
+    ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
 
     plt.show()
 
