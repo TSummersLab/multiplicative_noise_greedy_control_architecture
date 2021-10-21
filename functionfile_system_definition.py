@@ -245,7 +245,7 @@ def system_display_matrix(sys_in, fname=None):
     # nv = np.shape(sys['F'])[1]
 
     fig1 = plt.figure(constrained_layout=True)
-    gs1 = GridSpec(3, 4, figure=fig1)
+    gs1 = GridSpec(2, 4, figure=fig1)
 
     # cm = plt.get_cmap('Blues')
 
@@ -264,17 +264,8 @@ def system_display_matrix(sys_in, fname=None):
         ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
         ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    # ax3 = fig1.add_subplot(gs1[2, 0])
-    # a3 = ax3.imshow(actuator_list_to_matrix(sys['F'], nx), extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-    # ax3.set_title(r'$F$')
-    # plt.colorbar(a3, ax=ax3, location='bottom')
-    # ax3.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    # ax3.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
     net_alpha = np.sum(sys['alphai'])
     net_beta = np.sum(sys['betaj'])
-    # net_gamma = np.sum(sys['gammak'])
-    # if net_alpha+net_beta+net_gamma > 0:
     if net_alpha + net_beta > 0:
         ax4 = fig1.add_subplot(gs1[0, 1])
         ax4_col = 0
@@ -305,20 +296,6 @@ def system_display_matrix(sys_in, fname=None):
             ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
             ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-        # if net_gamma != 0:
-        #     a4 = ax4.scatter(range(1, len(sys['gammak']) + 1), sys['gammak'], c='C1', marker='3', alpha=0.8, label=r'$\gamma_k$')
-        #     ax4_col += 1
-        #     Fk_net = np.zeros_like(sys['F'])
-        #     for k in range(0, len(sys['gammak'])):
-        #         Fk_net += sys['Fk'][k, :, :]*sys['gammak'][k] #/ net_gamma
-        #     ax7 = fig1.add_subplot(gs1[2, 2])
-        #     a7 = ax7.imshow(Fk_net, extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-        #     plt.colorbar(a7, ax=ax7, location='bottom')
-        #     ax7.set_title(r'$\sum \gamma_k F_k$')
-        #     ax7.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-        #     ax7.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-        # ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']), len(sys['gammak']))))
         ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']))))
         ax4.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
         ax4.legend(markerfirst=False, framealpha=0.2, handlelength=1, labelspacing=0.4, columnspacing=0.5, ncol=ax4_col)
@@ -338,30 +315,11 @@ def system_display_matrix(sys_in, fname=None):
     ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    # ax12 = fig1.add_subplot(gs1[2, 3])
-    # a12 = ax12.imshow(sys['R2'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-    # ax12.set_title(r'$R_2$')
-    # plt.colorbar(a12, ax=ax12, location='bottom')
-    # ax12.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    # ax12.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-    # if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
-    #     ax13 = fig1.add_subplot(gs1[1, 1])
-    #     a13 = ax13.imshow(sys['W'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-    #     ax13.set_title(r'$W$')
-    #     plt.colorbar(a13, ax=ax13, location='bottom')
-    #     ax13.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    #     ax13.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-    # if imgtitle is not None:
-    #     fig1.suptitle(imgtitle)
-    # elif sys['label'] is not None:
-    #     fig1.suptitle(sys['label'])
-
     if fname is None:
         fname = sys['label']
 
     try:
+        plt.suptitle(fname)
         plt.savefig('images/'+fname+'_system.pdf', format='pdf')
     except:
         print('Incorrect save name/directory')
