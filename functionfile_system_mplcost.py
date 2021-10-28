@@ -788,14 +788,15 @@ def plot_simulation_nom_vs_mpl_2(values, fname=None):
 
 ################################################################
 
-def actuator_comparison(sys1_in, sys2_in, figplt=True):
+def actuator_comparison(sys1_in, sys2_in, disptext=True, figplt=True):
     S1 = dc(sys1_in)
     S2 = dc(sys2_in)
 
     return_value = {}
 
     if np.allclose(S1['B'], S2['B']):
-        print('Both control sets are close/equal')
+        if disptext:
+            print('Both control sets are close/equal')
         return_value['act_comp'] = 0
         if figplt:
             fig1 = plt.figure(constrained_layout=True)
@@ -817,10 +818,12 @@ def actuator_comparison(sys1_in, sys2_in, figplt=True):
             ax1.set_title('Actuator Set (B) comparison')
             plt.show()
         else:
-            print(S1['label'], ' B = ', S2['label'], ' B:\n', S2['B'])
+            if disptext:
+                print(S1['label'], ' B = ', S2['label'], ' B:\n', S2['B'])
 
     else:
-        print('Control sets are different')
+        if disptext:
+            print('Control sets are different')
         return_value['act_comp'] = 1
         if figplt:
             fig1 = plt.figure(constrained_layout=True)
@@ -849,10 +852,11 @@ def actuator_comparison(sys1_in, sys2_in, figplt=True):
             ax1.legend([S1['label'], S2['label']], framealpha=0.5)
             plt.show()
         else:
-            print(S1['label'], ' B:\n', S1['B'])
-            print(S2['label'], ' B:\n', S2['B'])
-            print('B diff (%s - %s):' % (S1['label'], S2['label']))
-            print(S1['B'] - S2['B'])
+            if disptext:
+                print(S1['label'], ' B:\n', S1['B'])
+                print(S2['label'], ' B:\n', S2['B'])
+                print('B diff (%s - %s):' % (S1['label'], S2['label']))
+                print(S1['B'] - S2['B'])
 
 
     # print(S1['label'], ' B:\n', S1['B'])
