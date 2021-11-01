@@ -1,6 +1,6 @@
 import numpy as np
 from copy import deepcopy as dc
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -516,10 +516,10 @@ def simulation_core(sys_in, feedback, initial_values=None):
         dyn_noise = np.zeros((nx, nx))
         if np.sum(alpha_sim[t, :]) > 0:
             for i in range(0, np.shape(alpha_sim)[1]):
-                dyn_noise += alpha_sim[t, i] * Ai[i, :, :]
+                dyn_noise += (alpha_sim[t, i] * Ai[i, :, :])
         if np.sum(beta_sim[t, :]) > 0:
             for j in range(0, np.shape(beta_sim)[1]):
-                dyn_noise += beta_sim[t, j] * (Bj[j, :, :] @ K)
+                dyn_noise += (beta_sim[t, j] * (Bj[j, :, :] @ K))
 
         state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :])
         control_effort[t, :] = K @ state_trajectory[t, :]
@@ -636,6 +636,29 @@ def simulation_nom_vs_mpl(sys_nom_in, sys_mpl_in, sys_true_in, initial_values=No
 
     ret_nom['label'] = sys_true['label'] + 'from Nominal'
     ret_mpl['label'] = sys_mpl['label'] + 'from MPL'
+
+    return_values = {'T_Nom': ret_nom, 'T_MPL': ret_mpl, 'system_mpl': sys_mpl, 'system_nom': sys_nom}
+    return return_values
+
+
+################################################################
+
+def simulation_2_model_comparison(sys_base_in, sys_model1_in, sys_model2_in, initial_values=None):
+    sys_base = dc(sys_base_in)
+    sys_model1 = dc(sys_model1_in)
+    sys_model2 = dc(sys_model2_in)
+
+    if initial_values is None:
+        initial_values = initial_values_init(sys_true)
+
+    sys_model1 = dc(actuator_selection_cost_1(sys_model1, initial_values=initial_values)['system'])
+    sys_model2 = dc(actuator_selection_cost_1(sys_model2, initial_values=initial_values)['system'])
+
+    ret_1 = simulation_actuator_selection(sys_model1, sys_base, initial_values=initial_values)
+    ret_2 = simulation_actuator_selection(sys_model2, sys_base, initial_values=initial_values)
+
+    ret_1['label'] = sys_model1['label'] + 'from Model 1'
+    ret_2['label'] = sys_model2['label'] + 'from Model 2'
 
     return_values = {'T_Nom': ret_nom, 'T_MPL': ret_mpl, 'system_mpl': sys_mpl, 'system_nom': sys_nom}
     return return_values
@@ -863,6 +886,78 @@ def actuator_comparison(sys1_in, sys2_in, disptext=True, figplt=True):
     # print(S2['label'], ' B:\n', S2['B'])
 
     return return_value
+
+
+################################################################
+
+def random_graph_emperical_simulation(sys_model, edge_probability, number_of_iterations=50):
+
+    nx = np.shape(sys_model['A'])[0]
+    rho = np.max(np.abs(np.linalg.eigvals(sys_model['A'])))
+    alphai = dc(sys_model['alphai'])
+    X0 = dc(sys_model['X0'])
+
+    N_test = number_of_iterations
+
+    cost_record_nom = np.nan * np.zeros((nx, N_test))
+    cost_record_mpl = np.nan * np.zeros((nx, N_test))
+
+    for iter in range(0, N_test):
+
+        print("Realization: %s / %s" % (iter + 1, N_test), end='\r')
+
+        ER1 = create_graph(nx, type='ER', p=edge_probability)
+        ER2 = create_graph(nx, type='ER', p=edge_probability)
+        ER3 = create_graph(nx, type='ER', p=edge_probability)
+
+        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=ER2['A'], X0_in=X0, label_in='System MPL',
+                               print_check=False)
+        if not system_check(S_MPL)['check']:
+            print('MPL System Error')
+
+        S_Nom = system_package(A_in=rho * ER1['A'], X0_in=X0, label_in='System Nominal', print_check=False)
+        if not system_check(S_Nom)['check']:
+            print('Nominal System Error')
+
+        S_True = system_package(A_in=rho * ER3['A'], X0_in=X0, label_in='System True', print_check=False)
+        if not system_check(S_True)['check']:
+            print('True System Error')
+
+        ret_sim = simulation_nom_vs_mpl(S_Nom, S_MPL, S_True)
+
+        # print(ret_sim)
+
+        for i in ret_sim['T_Nom']['costs']:
+            cost_record_nom[int(i) - 1, iter] = ret_sim['T_Nom']['costs'][i][-1]
+        for i in ret_sim['T_MPL']['costs']:
+            cost_record_mpl[int(i) - 1, iter] = ret_sim['T_MPL']['costs'][i][-1]
+
+    return_values = {'Nom_costs': cost_record_nom, 'MPL_costs': cost_record_mpl}
+    return return_values
+
+
+################################################################
+
+def plot_random_graph_simulation(plt_data):
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(2, 1, figure=fig1)
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
+
+    ax2 = fig1.add_subplot(gs1[1, 0])
+    ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
+
+    # fig1 = plt.figure(constrained_layout=True)
+    # gs1 = GridSpec(1, 1, figure=fig1)
+    # ax1 = fig1.add_subplot(gs1[0, 0])
+    # ax1.violinplot(cost_record_nom.T, showmeans=True)
+    # ax1.violinplot(cost_record_mpl.T, showmeans=True)
+
+    plt.show()
+
+    return None
 
 
 ################################################################

@@ -18,25 +18,28 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None):
+def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None, print_check=True):
     A = dc(A_in)
     nx = np.shape(A)[0]
 
     if B_in is None:
         B = np.zeros((nx, nx))
-        print('Control input matrix not given - assumed no controller')
+        if print_check:
+            print('Control input matrix not given - assumed no controller')
     else:
         if np.ndim(B_in) == 1:
             B = actuator_list_to_matrix(B_in, nx)
         elif np.ndim(B_in) == 2:
             B = dc(B_in)
             if np.shape(B)[0] != np.shape(A)[0]:
-                print('Check control input matrix size')
+                if print_check:
+                    print('Check control input matrix size')
                 return None
             elif np.shape(B)[1] != np.shape(A)[1]:
                 B = np.pad(B, ((0, 0), (0, np.shape(A)[1]-np.shape(B)[1])), 'constant')
         else:
-            print('Check control input matrix')
+            if print_check:
+                print('Check control input matrix')
             return None
     nu = np.shape(B)[1]
 
@@ -48,7 +51,8 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
     if alphai_in is None:
         alphai = [0]
         Ai = np.expand_dims(np.zeros_like(A), axis=0)
-        print('Actuator noise matrix not specified - assumed 0')
+        if print_check:
+            print('Actuator noise matrix not specified - assumed 0')
     else:
         alphai = dc(alphai_in)
         if Ai_in is None:
@@ -59,13 +63,15 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
             elif np.ndim(Ai_in) == 3:
                 Ai = dc(Ai_in)
             else:
-                print('Check actuator noise matrix')
+                if print_check:
+                    print('Check actuator noise matrix')
                 return None
 
     if betaj_in is None:
         betaj = [0]
         Bj = np.expand_dims(np.zeros_like(B), axis=0)
-        print('Control noise matrix not specified - assumed 0')
+        if print_check:
+            print('Control noise matrix not specified - assumed 0')
     else:
         betaj = dc(betaj_in)
         if Bj_in is None:
@@ -76,7 +82,8 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
             elif np.ndim(Bj_in) == 3:
                 Bj = dc(Bj_in)
             else:
-                print('Check control noise matrix')
+                if print_check:
+                    print('Check control noise matrix')
                 return None
 
     if Q_in is None:
@@ -90,19 +97,23 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
         R1 = dc(R1_in)
 
     if X0_in is None:
-        print('No initial state specified')
+        if print_check:
+            print('No initial state specified')
         X0 = np.zeros(nx)
         metric = 0
     elif np.ndim(X0_in) == 1:
-        print('Initial state vector specified')
+        if print_check:
+            print('Initial state vector specified')
         X0 = dc(X0_in)
         metric = 1
     elif np.ndim(X0_in) == 2:
-        print('Initial state distribution specified')
+        if print_check:
+            print('Initial state distribution specified')
         X0 = dc(X0_in)
         metric = 2
     else:
-        print('Check initial state distribution')
+        if print_check:
+            print('Check initial state distribution')
         return None
 
     sys = {'label': label, 'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric}
@@ -361,6 +372,27 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
     return_values = {'A': A, 'eig_max': e, 'Adj': Adj}
     return return_values
 
+
+#####################################################
+
+def matrix_splitter(A):
+
+    A_split = np.expand_dims(np.zeros_like(A), axis=0)
+
+    for i in range(0, np.shape(A)[0]):
+        for j in range(0, np.shape(A)[1]):
+            if A[i, j] != 0:
+                # print(np.shape(A_split))
+                A_add = np.zeros_like(A)
+                A_add[i, j] = 1
+                # print(A_add)
+                A_split = np.append(A_split, np.expand_dims(A_add, axis=0), axis=0)
+
+    # print(np.shape(A_split))
+    A_split = A_split[1:, :, :]
+    # print(np.shape(A_split))
+
+    return A_split
 
 #####################################################
 
