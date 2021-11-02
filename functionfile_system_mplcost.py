@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.gridspec import GridSpec
+import matplotlib.patches as mpatches
 # from matplotlib.ticker import MaxNLocator
 
 matplotlib.rcParams['axes.titlesize'] = 10
@@ -17,7 +18,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**10), P_min=(10**(-8))):
+def initial_values_init(sys_in=None, T=200, P_max=(10**8), P_min=(10**(-8))):
     return_values = {'T': T, 'P_max': P_max, 'P_min': P_min}
     if sys_in is None:
         return_values['X0'] = None
@@ -525,7 +526,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
-            print('====> Breaking current simulation at t=', t, ' as cumulative cost magnitude exceed 10^(10)')
+            print('====> Breaking current simulation at t= %s as cumulative cost magnitude exceed %.0e' %(t, initial_values['P_max']))
             break
 
     return_values = {'states': state_trajectory, 'costs': cost_trajectory, 'control': control_effort}
@@ -637,7 +638,7 @@ def simulation_model_comparison(sys_modelA_in, sys_modelB_in, sys_true_in, initi
     ret_A['label'] = sys_modelA['label'] + ' on ' + sys_true['label']
     ret_B['label'] = sys_modelA['label'] + ' on ' + sys_true['label']
 
-    return_values = {'T_A': ret_A, 'T_B': ret_B, 'system_A': sys_modelA, 'system_B': sys_modelB}
+    return_values = {'T_A': ret_A, 'T_B': ret_B, 'system_A': sys_modelA, 'system_B': sys_modelB, 'system_C': sys_true}
     # T_A, T_B: state, input and cost trajectories of simulations of true system using A and B respectively
     # system_A, system_B: systems with optimal selection of actuator sets
     return return_values
@@ -993,7 +994,7 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
         ER2 = create_graph(nx, type='ER', p=edge_probability)
         ER3 = create_graph(nx, type='ER', p=edge_probability)
 
-        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=ER2['A'], X0_in=X0, label_in='System MPL',
+        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=np.abs(ER1['Adj']-ER3['Adj']), X0_in=X0, label_in='System MPL',
                                print_check=False)
         if not system_check(S_MPL)['check']:
             print('MPL System Error')
@@ -1023,24 +1024,45 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
 
 def plot_random_graph_simulation(plt_data):
 
-    fig1 = plt.figure(constrained_layout=True)
-    gs1 = GridSpec(2, 1, figure=fig1)
-
-    ax1 = fig1.add_subplot(gs1[0, 0])
-    ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
-
-    ax2 = fig1.add_subplot(gs1[1, 0])
-    ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
-
     # fig1 = plt.figure(constrained_layout=True)
-    # gs1 = GridSpec(1, 1, figure=fig1)
+    # gs1 = GridSpec(2, 1, figure=fig1)
     # ax1 = fig1.add_subplot(gs1[0, 0])
-    # ax1.violinplot(cost_record_nom.T, showmeans=True)
-    # ax1.violinplot(cost_record_mpl.T, showmeans=True)
+    # ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
+    # ax2 = fig1.add_subplot(gs1[1, 0])
+    # ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(1, 1, figure=fig1)
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    p1 = ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
+    p2 = ax1.violinplot(plt_data['MPL_costs'].T, showmeans=True)
+
+    for i in p1['bodies']:
+        i.set_facecolor('C0')
+        # i.set_alpha(0.3)
+    for j in p2['bodies']:
+        j.set_facecolor('C3')
+        # j.set_alpha(0.3)
+
+    mean_nom = np.mean(plt_data['Nom_costs'], axis=1)
+    mean_mpl = np.mean(plt_data['MPL_costs'], axis=1)
+
+    ax1.plot(range(1, len(mean_nom)+1), mean_nom, color='C0', label='Nominal')
+    ax1.plot(range(1, len(mean_mpl) + 1), mean_mpl, color='C3', label='MPL')
+    ax1.set_yscale('log')
+    ax1.legend()
 
     plt.show()
 
     return None
+
+
+################################################################
+
+def cost_comparison_print(data):
+    print('True system (%s) simulation cost with A (%s) and B (%s) feedback (4decimal approx)' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
+    for key in data['T_A']['costs']:
+        print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
 
 
 ################################################################
