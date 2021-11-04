@@ -984,17 +984,19 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
     N_test = number_of_iterations
 
     cost_record_nom = np.nan * np.zeros((nx, N_test))
+    check_record_nom = np.zeros(nx)
     cost_record_mpl = np.nan * np.zeros((nx, N_test))
+    check_record_mpl = np.zeros(nx)
 
     for iter in range(0, N_test):
 
         print("Realization: %s / %s" % (iter + 1, N_test), end='\r')
 
         ER1 = create_graph(nx, type='ER', p=edge_probability)
-        ER2 = create_graph(nx, type='ER', p=edge_probability)
+        # ER2 = create_graph(nx, type='ER', p=edge_probability)
         ER3 = create_graph(nx, type='ER', p=edge_probability)
 
-        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=np.abs(ER1['Adj']-ER3['Adj']), X0_in=X0, label_in='System MPL',
+        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=np.ceil(np.abs(ER1['Adj']-ER3['Adj'])), X0_in=X0, label_in='System MPL',
                                print_check=False)
         if not system_check(S_MPL)['check']:
             print('MPL System Error')
@@ -1034,15 +1036,12 @@ def plot_random_graph_simulation(plt_data):
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(1, 1, figure=fig1)
     ax1 = fig1.add_subplot(gs1[0, 0])
-    p1 = ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
-    p2 = ax1.violinplot(plt_data['MPL_costs'].T, showmeans=True)
-
-    for i in p1['bodies']:
-        i.set_facecolor('C0')
-        # i.set_alpha(0.3)
-    for j in p2['bodies']:
-        j.set_facecolor('C3')
-        # j.set_alpha(0.3)
+    # for i in range(0, np.shape(plt_data['Nom_costs'])[0]):
+    #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
+    # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
+    #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
+    ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
+    ax1.violinplot(plt_data['MPL_costs'].T, showmeans=True)
 
     mean_nom = np.mean(plt_data['Nom_costs'], axis=1)
     mean_mpl = np.mean(plt_data['MPL_costs'], axis=1)
@@ -1060,7 +1059,7 @@ def plot_random_graph_simulation(plt_data):
 ################################################################
 
 def cost_comparison_print(data):
-    print('True system (%s) simulation cost with A (%s) and B (%s) feedback (4decimal approx)' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
+    print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
     for key in data['T_A']['costs']:
         print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
 
