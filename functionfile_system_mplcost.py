@@ -983,9 +983,9 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
 
     N_test = number_of_iterations
 
-    cost_record_nom = np.nan * np.zeros((nx, N_test))
+    cost_record_nom = np.nan * np.zeros((N_test, nx))
     check_record_nom = np.zeros(nx)
-    cost_record_mpl = np.nan * np.zeros((nx, N_test))
+    cost_record_mpl = np.nan * np.zeros((N_test, nx))
     check_record_mpl = np.zeros(nx)
 
     for iter in range(0, N_test):
@@ -1014,9 +1014,9 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
         # print(ret_sim)
 
         for i in ret_sim['T_A']['costs']:
-            cost_record_nom[int(i) - 1, iter] = ret_sim['T_A']['costs'][i][-1]
+            cost_record_nom[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
         for i in ret_sim['T_B']['costs']:
-            cost_record_mpl[int(i) - 1, iter] = ret_sim['T_B']['costs'][i][-1]
+            cost_record_mpl[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
 
     return_values = {'Nom_costs': cost_record_nom, 'MPL_costs': cost_record_mpl}
     return return_values
@@ -1040,11 +1040,11 @@ def plot_random_graph_simulation(plt_data):
     #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
     # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
     #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
-    ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
-    ax1.violinplot(plt_data['MPL_costs'].T, showmeans=True)
+    ax1.violinplot(plt_data['Nom_costs'], showmeans=True)
+    ax1.violinplot(plt_data['MPL_costs'], showmeans=True)
 
-    mean_nom = np.mean(plt_data['Nom_costs'], axis=1)
-    mean_mpl = np.mean(plt_data['MPL_costs'], axis=1)
+    mean_nom = np.mean(plt_data['Nom_costs'], axis=0)
+    mean_mpl = np.mean(plt_data['MPL_costs'], axis=0)
 
     ax1.plot(range(1, len(mean_nom)+1), mean_nom, color='C0', label='Nominal')
     ax1.plot(range(1, len(mean_mpl) + 1), mean_mpl, color='C3', label='MPL')
