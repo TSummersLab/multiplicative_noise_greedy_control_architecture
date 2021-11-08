@@ -1,6 +1,6 @@
 import numpy as np
 from copy import deepcopy as dc
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -993,19 +993,22 @@ def random_graph_emperical_simulation(sys_model, edge_probability, number_of_ite
         print("Realization: %s / %s" % (iter + 1, N_test), end='\r')
 
         ER1 = create_graph(nx, type='ER', p=edge_probability)
-        # ER2 = create_graph(nx, type='ER', p=edge_probability)
+        ER2 = create_graph(nx, type='ER', p=edge_probability)
         ER3 = create_graph(nx, type='ER', p=edge_probability)
 
-        S_MPL = system_package(A_in=rho * ER1['A'], alphai_in=alphai, Ai_in=np.ceil(np.abs(ER1['Adj']-ER3['Adj'])), X0_in=X0, label_in='System MPL',
+        Ai_MPL = matrix_splitter(np.abs(ER3['Adj']-ER1['Adj']))
+        alphai_MPL = alphai*np.ones(np.shape(Ai_MPL)[0])
+
+        S_MPL = system_package(A_in=rho*ER1['A'], alphai_in=alphai_MPL, Ai_in=Ai_MPL, X0_in=X0, label_in='System MPL',
                                print_check=False)
         if not system_check(S_MPL)['check']:
             print('MPL System Error')
 
-        S_Nom = system_package(A_in=rho * ER1['A'], X0_in=X0, label_in='System Nominal', print_check=False)
+        S_Nom = system_package(A_in=rho*ER1['A'], X0_in=X0, label_in='System Nominal', print_check=False)
         if not system_check(S_Nom)['check']:
             print('Nominal System Error')
 
-        S_True = system_package(A_in=rho * ER3['A'], X0_in=X0, label_in='System True', print_check=False)
+        S_True = system_package(A_in=rho*ER3['A'], X0_in=X0, alphai_in=alphai, Ai_in=ER2['Adj'], label_in='System True', print_check=False)
         if not system_check(S_True)['check']:
             print('True System Error')
 
@@ -1033,24 +1036,60 @@ def plot_random_graph_simulation(plt_data):
     # ax2 = fig1.add_subplot(gs1[1, 0])
     # ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
 
+    Nom_values = []
+    MPL_values = []
+
+    Nom_check = []
+    MPL_check = []
+
+    for i in range(0, np.shape(plt_data['Nom_costs'])[1]):
+        Nom_values.append([j for j in plt_data['Nom_costs'][:, i] if not np.isnan(j)])
+        Nom_check.append(np.sum(np.isnan(plt_data['Nom_costs'][:, i])))
+
+    for i in range(0, np.shape(plt_data['MPL_costs'])[1]):
+        MPL_values.append([j for j in plt_data['MPL_costs'][:, i] if not np.isnan(j)])
+        MPL_check.append(np.sum(np.isnan(plt_data['MPL_costs'][:, i])))
+
+    for i in range(0, len(Nom_check)):
+        if Nom_check[i] == 0:
+            Nom_check[i] = np.nan
+    for i in range(0, len(MPL_check)):
+        if MPL_check[i] == 0:
+            MPL_check[i] = np.nan
+        # temp = plt_data['MPL_costs'][:, i]
+        # temp = [j for j in temp if not np.isnan(j)]
+        # MPL_values.append(temp)
+    # print(Nom_values)
+    # print(len(Nom_values))
+
     fig1 = plt.figure(constrained_layout=True)
-    gs1 = GridSpec(1, 1, figure=fig1)
-    ax1 = fig1.add_subplot(gs1[0, 0])
+    gs1 = GridSpec(3, 1, figure=fig1)
+    ax1 = fig1.add_subplot(gs1[0:2, 0])
     # for i in range(0, np.shape(plt_data['Nom_costs'])[0]):
     #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
     # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
     #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
-    ax1.violinplot(plt_data['Nom_costs'], showmeans=True)
-    ax1.violinplot(plt_data['MPL_costs'], showmeans=True)
+    ax1.violinplot(Nom_values, showmeans=True)
+    ax1.violinplot(MPL_values, showmeans=True)
 
-    mean_nom = np.mean(plt_data['Nom_costs'], axis=0)
-    mean_mpl = np.mean(plt_data['MPL_costs'], axis=0)
+    mean_nom = [np.mean(i) for i in Nom_values]
+    mean_mpl = [np.mean(i) for i in MPL_values]
 
-    ax1.plot(range(1, len(mean_nom)+1), mean_nom, color='C0', label='Nominal')
+    ax1.plot(range(1, len(mean_nom) + 1), mean_nom, color='C0', label='Nominal')
     ax1.plot(range(1, len(mean_mpl) + 1), mean_mpl, color='C3', label='MPL')
     ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
     ax1.legend()
 
+    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2.scatter(range(1, 1+len(Nom_check)), Nom_check, alpha=0.5, color='C0', label='Nominal')
+    ax2.scatter(range(1, 1+len(MPL_check)), MPL_check, alpha=0.5, color='C3', label='MPL')
+    ax2.legend()
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Fail of ')
+
+    fname = 'images/MPL_on_ER.pdf'
+    plt.savefig(fname, format='pdf')
     plt.show()
 
     return None
