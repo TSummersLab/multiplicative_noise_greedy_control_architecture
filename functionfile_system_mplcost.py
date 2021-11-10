@@ -1042,13 +1042,24 @@ def plot_random_graph_simulation(plt_data):
     Nom_check = []
     MPL_check = []
 
+    Nom_pos = [] # list(range(1, 1 + np.shape(plt_data['Nom_costs'])[1]))
+    MPL_pos = [] # list(range(1, 1 + np.shape(plt_data['MPL_costs'])[1]))
+
     for i in range(0, np.shape(plt_data['Nom_costs'])[1]):
         Nom_values.append([j for j in plt_data['Nom_costs'][:, i] if not np.isnan(j)])
         Nom_check.append(np.sum(np.isnan(plt_data['Nom_costs'][:, i])))
+        if len(Nom_values[-1]) > 0:
+            Nom_pos.append(i+1)
+        else:
+            del Nom_values[-1]
 
     for i in range(0, np.shape(plt_data['MPL_costs'])[1]):
         MPL_values.append([j for j in plt_data['MPL_costs'][:, i] if not np.isnan(j)])
         MPL_check.append(np.sum(np.isnan(plt_data['MPL_costs'][:, i])))
+        if len(MPL_values[-1]) > 0:
+            MPL_pos.append(i+1)
+        else:
+            del MPL_values[-1]
 
     for i in range(0, len(Nom_check)):
         if Nom_check[i] == 0:
@@ -1061,6 +1072,8 @@ def plot_random_graph_simulation(plt_data):
         # MPL_values.append(temp)
     # print(Nom_values)
     # print(len(Nom_values))
+    # print(Nom_values)
+    # print(Nom_pos)
 
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 1, figure=fig1)
@@ -1069,8 +1082,8 @@ def plot_random_graph_simulation(plt_data):
     #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
     # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
     #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
-    ax1.violinplot(Nom_values, showmeans=True)
-    ax1.violinplot(MPL_values, showmeans=True)
+    ax1.violinplot(Nom_values, Nom_pos, showmeans=True)
+    ax1.violinplot(MPL_values, MPL_pos, showmeans=True)
 
     mean_nom = [np.mean(i) for i in Nom_values]
     mean_mpl = [np.mean(i) for i in MPL_values]
