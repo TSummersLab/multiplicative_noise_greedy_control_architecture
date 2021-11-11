@@ -1,11 +1,12 @@
 import numpy as np
 from copy import deepcopy as dc
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
 
 import matplotlib
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.gridspec import GridSpec
+import matplotlib.patches as mpatches
 # from matplotlib.ticker import MaxNLocator
 
 matplotlib.rcParams['axes.titlesize'] = 10
@@ -17,7 +18,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**5), P_min=(10**(-8))):
+def initial_values_init(sys_in=None, T=200, P_max=(10**8), P_min=(10**(-8))):
     return_values = {'T': T, 'P_max': P_max, 'P_min': P_min}
     if sys_in is None:
         return_values['X0'] = None
@@ -46,6 +47,7 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**5), P_min=(10**(-8))):
 
     # T: max time steps of Riccati iterations
     # P_max: max magnitude of cost matrix eigenvalue before assumed no convergence
+    # P_min: tolerance of convergence of cost matrices using np.all_close()
     # alphai: simulated state-dependent noise
     # betaj: simulated input-dependent noise
     # X0: initial state simulated if distribution provided
@@ -92,15 +94,21 @@ def cost_function_1(sys_in, initial_values=None):
 
         A_sum = np.zeros_like(A)
         if np.sum(alphai) != 0:
+            # print('Using alphai')
             for i in range(0, len(alphai)):
                 A_sum += alphai[i] * (Ai[i, :, :].T @ P @ Ai[i, :, :])
+        # else:
+        #     print('NOT using alphai')
 
         B_sum = np.zeros_like(B)
         if np.sum(betaj) != 0:
+            # print('Using betaj')
             for j in range(0, len(betaj)):
                 B_sum += betaj[j] * (Bj[j, :, :].T @ P @ Bj[j, :, :])
+        # else:
+        #     print('NOT using betaj')
 
-        P_new = Q + (A.T @ P @ A) - (A.T @ P @ B @ np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A)
+        P_new = Q + (A.T @ P @ A) + A_sum - (A.T @ P @ B @ np.linalg.inv(R1 + (B.T @ P @ B) + B_sum) @ B.T @ P @ A)
 
         if np.allclose(P_new, P, atol=initial_values['P_min']):
             P_check = 0
@@ -116,7 +124,6 @@ def cost_function_1(sys_in, initial_values=None):
             P_check = 3
             break
 
-    K = np.zeros((np.shape(B)[1], np.shape(A)[0]))
     B_sum = np.zeros_like(B)
     if np.sum(betaj) != 0:
         for j in range(0, len(betaj)):
@@ -128,6 +135,7 @@ def cost_function_1(sys_in, initial_values=None):
     # J_trend: value of cost function over iterations till failure or convergence
     # t: time of convergence or failure
     # P_check: 0 if converged, 2 if time exceeded, 3 if cost exceeded
+    # K: control feedback gain for u = Kx
     return return_values
 
 
@@ -328,18 +336,18 @@ def plot_actuator_selection_2(values, fname=None):
             cost_check0[i] = values[str(i)]['cost']
             time_check0[i] = values[str(i)]['time']
 
-    print('cost_check0', cost_check0)
-    print('cost_check1', cost_check1)
-    print('time_check0', time_check0)
-    print('time_check1', time_check1)
+    # print('cost_check0', cost_check0)
+    # print('cost_check1', cost_check1)
+    # print('time_check0', time_check0)
+    # print('time_check1', time_check1)
 
-    ax1.scatter(x_range, cost_check0, marker='x', color='C0')
-    ax1.scatter(x_range, cost_check1, marker='x', color='C1')
+    ax1.scatter(x_range, cost_check0, marker='x', color='C0', alpha=0.7)
+    ax1.scatter(x_range, cost_check1, marker='x', color='C1', alpha=0.7)
     ax1.set_xlabel(r'$|S|$')
     ax1.set_ylabel(r'$J^*$')
 
-    ax2.scatter(x_range, time_check0, marker='x', color='C0')
-    ax2.scatter(x_range, time_check1, marker='x', color='C1')
+    ax2.scatter(x_range, time_check0, marker='x', color='C0', alpha=0.7)
+    ax2.scatter(x_range, time_check1, marker='x', color='C1', alpha=0.7)
     ax2.set_xlabel(r'$|S|$')
     ax2.set_ylabel(r'$t$')
 
@@ -350,12 +358,12 @@ def plot_actuator_selection_2(values, fname=None):
                 B[j, i] = np.nan
             else:
                 B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
-    print(B)
+    # print(B)
     for i in range(0, np.shape(B)[1]):
         if values[str(i)]['check']:
-            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1')
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1', alpha=0.7)
         else:
-            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0')
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0', alpha=0.7)
     ax3.invert_yaxis()
     ax3.set_xlabel(r'$|S|$')
     # ax3.set_ylabel('Actuated Node')
@@ -373,7 +381,100 @@ def plot_actuator_selection_2(values, fname=None):
 
 ################################################################
 
+def plot_actuator_selection_comparison_1(values1, values2, fname=None):
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+
+    n_vals = len(values1)-2
+    B1 = dc(values1['B'])
+    B2 = dc(values2['B'])
+    x_range = list(range(0, n_vals))
+    cost_check0 = np.nan * np.ones((n_vals, 2))
+    cost_check1 = np.nan * np.ones((n_vals, 2))
+    time_check0 = np.nan * np.ones((n_vals, 2))
+    time_check1 = np.nan * np.ones((n_vals, 2))
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+
+    for i in range(0, 1 + np.shape(B1)[1]):
+        if values1[str(i)]['check']:
+            cost_check1[i, 0] = values1[str(i)]['cost']
+            time_check1[i, 0] = values1[str(i)]['time']
+        else:
+            cost_check0[i, 0] = values1[str(i)]['cost']
+            time_check0[i, 0] = values1[str(i)]['time']
+
+        if values2[str(i)]['check']:
+            cost_check1[i, 1] = values2[str(i)]['cost']
+            time_check1[i, 1] = values2[str(i)]['time']
+        else:
+            cost_check0[i, 1] = values2[str(i)]['cost']
+            time_check0[i, 1] = values2[str(i)]['time']
+
+    # print('cost_check0', cost_check0)
+    # print('cost_check1', cost_check1)
+    # print('time_check0', time_check0)
+    # print('time_check1', time_check1)
+
+    ax1.scatter(x_range, cost_check0[:, 0], marker='x', color='C0', alpha=0.7, label=values1['label'])
+    ax1.scatter(x_range, cost_check1[:, 0], marker='x', color='C2', alpha=0.7, label=values1['label'])
+    ax1.scatter(x_range, cost_check0[:, 1], marker='o', color='C1', alpha=0.7, label=values2['label'])
+    ax1.scatter(x_range, cost_check1[:, 1], marker='o', color='C3', alpha=0.7, label=values2['label'])
+    ax1.set_yscale('log')
+    ax1.set_xlabel(r'$|S|$')
+    ax1.set_ylabel(r'$J^*$')
+    ax1.legend()
+
+    ax2.scatter(x_range, time_check0[:, 0], marker='x', color='C0', alpha=0.7)
+    ax2.scatter(x_range, time_check1[:, 0], marker='x', color='C2', alpha=0.7)
+    ax2.scatter(x_range, time_check0[:, 1], marker='o', color='C1', alpha=0.7)
+    ax2.scatter(x_range, time_check1[:, 1], marker='o', color='C3', alpha=0.7)
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel(r'$t$')
+
+    B1 = np.pad(B1, ((0, 0), (1, 0)), 'constant')
+    B2 = np.pad(B2, ((0, 0), (1, 0)), 'constant')
+    for i in range(0, np.shape(B1)[1]):
+        for j in range(0, np.shape(B1)[0]):
+            if B1[j, i] == 0:
+                B1[j, i] = np.nan
+            else:
+                B1[j, i:np.shape(B1)[1]] = (j+1)*np.ones(np.shape(B1)[1]-i)
+            if B2[j, i] == 0:
+                B2[j, i] = np.nan
+            else:
+                B2[j, i:np.shape(B2)[1]] = (j+1)*np.ones(np.shape(B2)[1]-i)
+    # print(B)
+    for i in range(0, np.shape(B1)[1]):
+        if values1[str(i)]['check']:
+            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='1', color='C2', alpha=0.7)
+        else:
+            ax3.scatter(i * np.ones(np.shape(B1)[0]), B1[:, i], marker='1', color='C0', alpha=0.7)
+        if values2[str(i)]['check']:
+            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='2', color='C3', alpha=0.7)
+        else:
+            ax3.scatter(i * np.ones(np.shape(B2)[0]), B2[:, i], marker='2', color='C1', alpha=0.7)
+    ax3.invert_yaxis()
+    ax3.set_xlabel(r'$|S|$')
+    # ax3.set_ylabel('Actuated Node')
+
+    if fname is None:
+        fname = values1['label'] + ' vs ' + values2['label']
+
+    fig1.suptitle(fname)
+    fname = 'images/'+fname+'_selection.pdf'
+    plt.savefig(fname, format='pdf')
+    plt.show()
+
+    return None
+
+
+################################################################
+
 def simulation_core(sys_in, feedback, initial_values=None):
+    # feedback: dictionary of feedback values {'K': control gain} - constant gain over horizon
     sys = dc(sys_in)
 
     if initial_values is None:
@@ -388,7 +489,6 @@ def simulation_core(sys_in, feedback, initial_values=None):
     T_sim = initial_values['T']
     alpha_sim = initial_values['alphai']
     beta_sim = initial_values['betaj']
-    w_sim = initial_values['w']
 
     A = sys['A']
     B = sys['B']
@@ -417,16 +517,16 @@ def simulation_core(sys_in, feedback, initial_values=None):
         dyn_noise = np.zeros((nx, nx))
         if np.sum(alpha_sim[t, :]) > 0:
             for i in range(0, np.shape(alpha_sim)[1]):
-                dyn_noise += alpha_sim[t, i] * Ai[i, :, :]
+                dyn_noise += (alpha_sim[t, i] * Ai[i, :, :])
         if np.sum(beta_sim[t, :]) > 0:
             for j in range(0, np.shape(beta_sim)[1]):
-                dyn_noise += beta_sim[t, j] * (Bj[j, :, :] @ K)
+                dyn_noise += (beta_sim[t, j] * (Bj[j, :, :] @ K))
 
-        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :]) + w_sim[t, :]
+        state_trajectory[t + 1, :] = ((dyn_base_mat + dyn_noise) @ state_trajectory[t, :])
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
-            print('====> Breaking current simulation at t=', t, ' as cumulative cost magnitude exceed 10^(10)')
+            print('====> Breaking current simulation at t= %s as cumulative cost magnitude exceed %.0e' %(t, initial_values['P_max']))
             break
 
     return_values = {'states': state_trajectory, 'costs': cost_trajectory, 'control': control_effort}
@@ -443,15 +543,18 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
     sys_true = dc(sys_true_in)
 
     if initial_values is None:
-        initial_values = initial_values_init(sys_true_in)
+        initial_values = initial_values_init(sys_true)
 
-        sys_model['X0'] = dc(initial_values['X0'])
-        sys_model['metric'] = 1
-
+    # Update true system initial state covariance with realization
+    # Check if true system cannot be simulated - no initial state vector/distribution provided
+    if np.ndim(sys_true['X0']) == 2:
         sys_true['X0'] = dc(initial_values['X0'])
         sys_true['metric'] = 1
+    elif np.allclose(sys_true['X0'], np.zeros_like(sys_true['X0'])) or sys_true['metric'] == 0:
+        print('No initial state vector or distribution for true system provided - cannot run simulation')
+        return None
 
-    ret1 = cost_function_1(sys_model, initial_values)
+    ret1 = cost_function_1(sys_model)
     model_feedback = {'K': dc(ret1['K'])}
     # print('Gain (K):\n', model_feedback['K'])
     ret2 = simulation_core(sys_true, model_feedback, initial_values)
@@ -462,18 +565,19 @@ def simulation_wrapper(sys_model_in, sys_true_in, initial_values=None):
 
 ################################################################
 
-def simulation_actuator_selection(sys_model_in, sys_true_in, initial_values=None):
+def simulation_actuator_selection(sys_model_in, sys_true_in, u_low=1, initial_values=None):
     sys_model = dc(sys_model_in)
     sys_true = dc(sys_true_in)
 
     if initial_values is None:
         initial_values = initial_values_init(sys_true_in)
 
-        sys_model['X0'] = dc(initial_values['X0'])
-        sys_model['metric'] = 1
-
+    if np.ndim(sys_true['X0']) == 2:
         sys_true['X0'] = dc(initial_values['X0'])
         sys_true['metric'] = 1
+    elif np.allclose(sys_true['X0'], np.zeros_like(sys_true['X0'])) or sys_true['metric'] == 0:
+        print('No initial state vector or distribution for true system provided - cannot run simulation')
+        return None
 
     if np.shape(sys_model['B']) != np.shape(sys_true['B']):
         print('Controllers are not the same structure')
@@ -483,37 +587,84 @@ def simulation_actuator_selection(sys_model_in, sys_true_in, initial_values=None
     costs = {}
     control = {}
 
-    B_list = actuator_matrix_to_list(sys_model['B'])
-    # print(B_list)
     nx = np.shape(sys_model['A'])[0]
-    for i in range(0, np.shape(sys_model['B'])[1]):
+    for i in range(u_low, 1 + np.shape(sys_model['B'])[1]):
         sys_model_test = dc(sys_model)
         sys_true_test = dc(sys_true)
 
-        B_test = actuator_list_to_matrix(list(B_list[0:i+1]), nx)
-        # print('B_test:\n', B_test)
-        sys_model_test['B'] = dc(B_test)
-        sys_true_test['B'] = dc(B_test)
+        B_test1 = np.zeros_like(sys_model['B'])
+        B_test2 = np.zeros_like(sys_true['B'])
+
+        B_test1[:, 0:i] = dc(sys_model['B'][:, 0:i])
+        sys_model_test['B'] = dc(B_test1)
+        B_test2[:, 0:i] = dc(sys_model['B'][:, 0:i])
+        sys_true_test['B'] = dc(B_test2)
 
         if np.sum(sys_model_test['betaj']) > 0:
             for j in range(0, len(sys_model_test['betaj'])):
-                sys_model_test['Bj'][j, :, :] = dc(B_test)
+                sys_model_test['Bj'][j, :, :] = dc(B_test1)
         if np.sum(sys_true_test['betaj']) > 0:
             for j in range(0, len(sys_true_test['betaj'])):
-                sys_true_test['Bj'][j, :, :] = dc(B_test)
+                sys_true_test['Bj'][j, :, :] = dc(B_test2)
 
-        # print('Model sys:\n', sys_model_test)
-        # print('True sys:\n', sys_true_test)
         test_return = simulation_wrapper(sys_model_test, sys_true_test, initial_values)
-        states[str(i+1)] = test_return['states']
-        costs[str(i+1)] = test_return['costs']
-        control[str(i+1)] = test_return['control']
+        states[str(i)] = test_return['states']
+        costs[str(i)] = test_return['costs']
+        control[str(i)] = test_return['control']
 
-    return_values = {'label': sys_model['label'], 'states': states, 'costs': costs, 'control': control}
+    return_values = {'label': sys_model['label'] + ' ' + sys_true['label'], 'states': states, 'costs': costs, 'control': control}
     # states: dictionary of state trajectories for each actuator size
     # costs: dictionary of cost trends for each actuator size
     # control: dictionary of control effort for each actuator size
     return return_values
+
+
+################################################################
+
+def simulation_model_comparison(sys_modelA_in, sys_modelB_in, sys_true_in, initial_values=None):
+    sys_true = dc(sys_true_in)
+    sys_modelA = dc(sys_modelA_in)
+    sys_modelB = dc(sys_modelB_in)
+
+    if initial_values is None:
+        initial_values = initial_values_init(sys_true)
+
+    sys_modelA = dc(actuator_selection_cost_1(sys_modelA, initial_values=initial_values)['system'])
+    sys_modelB = dc(actuator_selection_cost_1(sys_modelB, initial_values=initial_values)['system'])
+
+    ret_A = simulation_actuator_selection(sys_modelA, sys_true, initial_values=initial_values)
+    ret_B = simulation_actuator_selection(sys_modelB, sys_true, initial_values=initial_values)
+
+    ret_A['label'] = sys_modelA['label'] + ' on ' + sys_true['label']
+    ret_B['label'] = sys_modelA['label'] + ' on ' + sys_true['label']
+
+    return_values = {'T_A': ret_A, 'T_B': ret_B, 'system_A': sys_modelA, 'system_B': sys_modelB, 'system_C': sys_true}
+    # T_A, T_B: state, input and cost trajectories of simulations of true system using A and B respectively
+    # system_A, system_B: systems with optimal selection of actuator sets
+    return return_values
+
+
+# ################################################################
+#
+# def simulation_2_model_comparison(sys_base_in, sys_model1_in, sys_model2_in, initial_values=None):
+#     sys_base = dc(sys_base_in)
+#     sys_model1 = dc(sys_model1_in)
+#     sys_model2 = dc(sys_model2_in)
+#
+#     if initial_values is None:
+#         initial_values = initial_values_init(sys_true)
+#
+#     sys_model1 = dc(actuator_selection_cost_1(sys_model1, initial_values=initial_values)['system'])
+#     sys_model2 = dc(actuator_selection_cost_1(sys_model2, initial_values=initial_values)['system'])
+#
+#     ret_1 = simulation_actuator_selection(sys_model1, sys_base, initial_values=initial_values)
+#     ret_2 = simulation_actuator_selection(sys_model2, sys_base, initial_values=initial_values)
+#
+#     ret_1['label'] = sys_model1['label'] + 'from Model 1'
+#     ret_2['label'] = sys_model2['label'] + 'from Model 2'
+#
+#     return_values = {'T_Nom': ret_nom, 'T_MPL': ret_mpl, 'system_mpl': sys_mpl, 'system_nom': sys_nom}
+#     return return_values
 
 
 ################################################################
@@ -545,14 +696,15 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'states' in display_data:
         ax1 = fig1.add_subplot(gs1[0, 0])
         for i in display_data['states']:
-            ax1.plot(T_range, display_data['states'][i], color='C'+i, label=i)
+            ax1.plot(T_range, display_data['states'][i], color='C'+i, alpha=0.5, label=i)
+        # ax1.set_yscale('log')
         ax1.set_xlabel(r'$t$')
         ax1.set_ylabel(r'$x_t$')
 
     if 'costs' in display_data:
         ax2 = fig1.add_subplot(gs1[1, 0])
         for i in display_data['costs']:
-            ax2.plot(T_range, display_data['costs'][i], color='C'+i, label=i)
+            ax2.plot(T_range, display_data['costs'][i], color='C'+i, alpha=0.5, label=i)
         ax2.set_xlabel(r'$t$')
         ax2.set_ylabel(r'$J^*$')
         ax2.set_yscale('log')
@@ -561,18 +713,411 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'control' in display_data:
         ax3 = fig1.add_subplot(gs1[2, 0])
         for i in display_data['control']:
-            ax3.plot(T_range, display_data['control'][i], color='C'+i, label=i)
+            ax3.plot(T_range, display_data['control'][i], color='C'+i, alpha=0.5, label=i)
         ax3.set_xlabel(r'$t$')
         ax3.set_ylabel(r'$u_t$')
 
-    if fname is not None:
-        fig1.suptitle(fname)
-        plt.savefig('images/'+fname+'_simulation.pdf', format='pdf')
+    if fname is None:
+        fname = display_data['label']
 
+    fig1.suptitle(fname)
+    fname = 'images/' + fname + '.pdf'
+    plt.savefig(fname, format='pdf')
     plt.show()
+
+    return None
 
 
 ################################################################
+
+def plot_simulation_comparison1(values, fname=None):
+
+    valuesA = dc(values['T_A'])
+    valuesB = dc(values['T_B'])
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+
+    T = np.shape(valuesA['states']['1'])[0]
+    T_range = list(range(0, T))
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    for key in valuesA['states']:
+        # ax1.plot(T_range, valuesA['states'][key], marker='o', alpha=0.5, color='C'+key)
+        # ax1.plot(T_range, valuesB['states'][key], marker='x', alpha=0.5, color='C'+key)
+        ax1.plot(T_range, valuesA['states'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax1.plot(T_range, valuesB['states'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+    ax1.set_xlabel(r'$t$')
+    ax1.set_ylabel(r'$x_t$')
+
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    for key in valuesA['control']:
+        # ax2.plot(T_range, valuesA['control'][key], marker='o', alpha=0.5, color='C'+key)
+        # ax2.plot(T_range, valuesB['control'][key], marker='x', alpha=0.5, color='C'+key)
+        ax2.plot(T_range, valuesA['control'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax2.plot(T_range, valuesB['control'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+    ax2.set_xlabel(r'$t$')
+    ax2.set_ylabel(r'$u_t$')
+
+    ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    for key in valuesA['costs']:
+        # ax3.plot(T_range, valuesA['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
+        # ax3.plot(T_range, valuesB['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
+        ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='A:'+key)
+        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='B:'+key)
+        # ax3.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
+        # ax3.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
+    ax3.set_xlabel(r'$t$')
+    ax3.set_ylabel(r'$J_t$')
+    ax3.set_yscale('log')
+    ax3.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def plot_simulation_comparison2(values, fname=None):
+    valuesA = dc(values['T_A'])
+    valuesB = dc(values['T_B'])
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(2, 1, figure=fig1)
+
+    T = np.shape(valuesA['costs']['1'])[0]
+    T_range = list(range(0, T))
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    for key in valuesA['costs']:
+        ax1.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key)
+        ax1.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+        # ax1.plot(T_range, valuesA['costs'][key], marker='o', alpha=0.5, color='C' + key)
+        # ax1.plot(T_range, valuesB['costs'][key], marker='x', alpha=0.5, color='C' + key)
+        # ax1.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
+        # ax1.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
+    ax1.set_xlabel(r'$t$')
+    ax1.set_ylabel(r'$J_t$')
+    ax1.set_yscale('log')
+
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    for key in valuesA['costs']:
+        ax2.plot(T_range, valuesA['costs'][key]-valuesB['costs'][key], alpha=0.5, color='C'+key, label=key)
+    ax2.set_xlabel(r'$t$')
+    ax2.set_ylabel(r'$J_t$ (A - B)')
+    ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+
+    plt.show()
+
+    return None
+
+
+################################################################
+
+# def plot_simulation_nom_vs_mpl_1(values, fname=None):
+# 
+#     Nom_values = dc(values['T_Nom'])
+#     MPL_values = dc(values['T_MPL'])
+# 
+#     fig1 = plt.figure(constrained_layout=True)
+#     gs1 = GridSpec(3, 1, figure=fig1)
+# 
+#     T = np.shape(Nom_values['states']['1'])[0]
+#     T_range = list(range(0, T))
+# 
+#     ax1 = fig1.add_subplot(gs1[0, 0])
+#     for key in Nom_values['states']:
+#         # ax1.plot(T_range, Nom_values['states'][key], marker='o', alpha=0.5, color='C'+key)
+#         # ax1.plot(T_range, MPL_values['states'][key], marker='x', alpha=0.5, color='C'+key)
+#         ax1.plot(T_range, Nom_values['states'][key], linewidth=1, alpha=0.5, color='C' + key)
+#         ax1.plot(T_range, MPL_values['states'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+#     ax1.set_xlabel(r'$t$')
+#     ax1.set_ylabel(r'$x_t$')
+# 
+#     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+#     for key in Nom_values['control']:
+#         # ax2.plot(T_range, Nom_values['control'][key], marker='o', alpha=0.5, color='C'+key)
+#         # ax2.plot(T_range, MPL_values['control'][key], marker='x', alpha=0.5, color='C'+key)
+#         ax2.plot(T_range, Nom_values['control'][key], linewidth=1, alpha=0.5, color='C' + key)
+#         ax2.plot(T_range, MPL_values['control'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+#     ax2.set_xlabel(r'$t$')
+#     ax2.set_ylabel(r'$u_t$')
+# 
+#     ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+#     for key in Nom_values['costs']:
+#         # ax3.plot(T_range, Nom_values['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
+#         # ax3.plot(T_range, MPL_values['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
+#         ax3.plot(T_range, Nom_values['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='Nom:'+key)
+#         ax3.plot(T_range, MPL_values['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='MPL:'+key)
+#         # ax3.plot(T_range, Nom_values['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
+#         # ax3.plot(T_range, MPL_values['costs'][key], alpha=0.5, color='C' + key)
+#     ax3.set_xlabel(r'$t$')
+#     ax3.set_ylabel(r'$J_t$')
+#     ax3.set_yscale('log')
+#     ax3.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
+#     plt.show()
+# 
+#     return None
+# 
+# def plot_simulation_nom_vs_mpl_2(values, fname=None):
+#     Nom_values = dc(values['T_Nom'])
+#     MPL_values = dc(values['T_MPL'])
+# 
+#     fig1 = plt.figure(constrained_layout=True)
+#     gs1 = GridSpec(2, 1, figure=fig1)
+# 
+#     T = np.shape(Nom_values['costs']['1'])[0]
+#     T_range = list(range(0, T))
+# 
+#     ax1 = fig1.add_subplot(gs1[0, 0])
+#     for key in Nom_values['costs']:
+#         ax1.plot(T_range, Nom_values['costs'][key], linewidth=1, alpha=0.5, color='C' + key)
+#         ax1.plot(T_range, MPL_values['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
+#         # ax1.plot(T_range, Nom_values['costs'][key], marker='o', alpha=0.5, color='C' + key)
+#         # ax1.plot(T_range, MPL_values['costs'][key], marker='x', alpha=0.5, color='C' + key)
+#         # ax1.plot(T_range, Nom_values['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
+#         # ax1.plot(T_range, MPL_values['costs'][key], alpha=0.5, color='C' + key)
+#     ax1.set_xlabel(r'$t$')
+#     ax1.set_ylabel(r'$J_t$')
+#     ax1.set_yscale('log')
+# 
+#     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+#     for key in Nom_values['costs']:
+#         ax2.plot(T_range, Nom_values['costs'][key]-MPL_values['costs'][key], alpha=0.5, color='C'+key, label=key)
+#     ax2.set_xlabel(r'$t$')
+#     ax2.set_ylabel(r'$J_t$ (Nominal - MPL feedback)')
+#     ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+# 
+#     plt.show()
+# 
+#     return None
+# 
+# 
+# ################################################################
+
+def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
+    SA = dc(sysA_in)
+    SB = dc(sys2_in)
+
+    return_value = {}
+
+    if np.allclose(SA['B'], SB['B']):
+        if disptext:
+            print('Both control sets are close/equal')
+        return_value['act_comp'] = 0
+        if figplt:
+            fig1 = plt.figure(constrained_layout=True)
+            gs1 = GridSpec(1, 1, figure=fig1)
+            ax1 = fig1.add_subplot(gs1[0, 0])
+            B = dc(SA['B'])
+            for i in range(0, np.shape(B)[1]):
+                for j in range(0, np.shape(B)[0]):
+                    if B[j, i] == 0:
+                        B[j, i] = np.nan
+                    else:
+                        B[j, i:np.shape(B)[1]] = (j + 1) * np.ones(np.shape(B)[1] - i)
+                ax1.scatter((i+1) * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0', s=100)
+            # ax1.set_ylim(bottom=1-0.5, top=np.shape(B)[0]+0.5)
+            # ax1.set_xlim(left=1-0.5, right=np.shape(B)[1]+0.5)
+            ax1.invert_yaxis()
+            ax1.set_xlabel(r'$|S|$')
+            ax1.set_ylabel('Node number')
+            ax1.set_title('Actuator Set comparison')
+            plt.show()
+        else:
+            if disptext:
+                print(SA['label'], ' B = ', SB['label'], ' B:\n', SB['B'])
+
+    else:
+        if disptext:
+            print('Control sets are different')
+        return_value['act_comp'] = 1
+        if figplt:
+            fig1 = plt.figure(constrained_layout=True)
+            gs1 = GridSpec(1, 1, figure=fig1)
+            ax1 = fig1.add_subplot(gs1[0, 0])
+            B1 = SA['B']
+            B2 = SB['B']
+            for i in range(0, np.shape(B1)[1]):
+                for j in range(0, np.shape(B1)[0]):
+                    if B1[j, i] == 0:
+                        B1[j, i] = np.nan
+                    else:
+                        B1[j, i:np.shape(B1)[1]] = (j + 1) * np.ones(np.shape(B1)[1] - i)
+                    if B2[j, i] == 0:
+                        B2[j, i] = np.nan
+                    else:
+                        B2[j, i:np.shape(B2)[1]] = (j + 1) * np.ones(np.shape(B2)[1] - i)
+                ax1.scatter((i+1) * np.ones(np.shape(B1)[0]), B1[:, i], marker='1', color='C0', s=100)
+                ax1.scatter((i+1) * np.ones(np.shape(B2)[0]), B2[:, i], marker='2', color='C1', s=100)
+            # ax1.set_ylim(bottom=1-0.5, top=np.shape(B1)[0]+0.5)
+            # ax1.set_xlim(left=1-0.5, right=np.shape(B1)[1]+0.5)
+            ax1.invert_yaxis()
+            ax1.set_xlabel(r'$|S|$')
+            ax1.set_ylabel('Node number')
+            ax1.set_title('Actuator Set comparison')
+            ax1.legend([SA['label'], SB['label']], framealpha=0.5)
+            plt.show()
+        else:
+            if disptext:
+                print(SA['label'], ' B:\n', SA['B'])
+                print(SB['label'], ' B:\n', SB['B'])
+                print('B diff (%s - %s):' % (SA['label'], SB['label']))
+                print(SA['B'] - SB['B'])
+
+
+    # print(SA['label'], ' B:\n', SA['B'])
+    # print(SB['label'], ' B:\n', SB['B'])
+
+    return return_value
+
+
+################################################################
+
+def random_graph_emperical_simulation(sys_model, edge_probability, number_of_iterations=50):
+
+    nx = np.shape(sys_model['A'])[0]
+    rho = np.max(np.abs(np.linalg.eigvals(sys_model['A'])))
+    alphai = dc(sys_model['alphai'])
+    X0 = dc(sys_model['X0'])
+
+    N_test = number_of_iterations
+
+    cost_record_nom = np.nan * np.zeros((N_test, nx))
+    check_record_nom = np.zeros(nx)
+    cost_record_mpl = np.nan * np.zeros((N_test, nx))
+    check_record_mpl = np.zeros(nx)
+
+    for iter in range(0, N_test):
+
+        print("Realization: %s / %s" % (iter + 1, N_test), end='\r')
+
+        ER1 = create_graph(nx, type='ER', p=edge_probability)
+        ER2 = create_graph(nx, type='ER', p=edge_probability)
+        ER3 = create_graph(nx, type='ER', p=edge_probability)
+
+        Ai_MPL = matrix_splitter(np.abs(ER3['Adj']-ER1['Adj']))
+        alphai_MPL = alphai*np.ones(np.shape(Ai_MPL)[0])
+
+        S_MPL = system_package(A_in=rho*ER1['A'], alphai_in=alphai_MPL, Ai_in=Ai_MPL, X0_in=X0, label_in='System MPL',
+                               print_check=False)
+        if not system_check(S_MPL)['check']:
+            print('MPL System Error')
+
+        S_Nom = system_package(A_in=rho*ER1['A'], X0_in=X0, label_in='System Nominal', print_check=False)
+        if not system_check(S_Nom)['check']:
+            print('Nominal System Error')
+
+        S_True = system_package(A_in=rho*ER3['A'], X0_in=X0, alphai_in=alphai, Ai_in=ER2['Adj'], label_in='System True', print_check=False)
+        if not system_check(S_True)['check']:
+            print('True System Error')
+
+        ret_sim = simulation_model_comparison(S_Nom, S_MPL, S_True)
+
+        # print(ret_sim)
+
+        for i in ret_sim['T_A']['costs']:
+            cost_record_nom[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
+        for i in ret_sim['T_B']['costs']:
+            cost_record_mpl[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
+
+    return_values = {'Nom_costs': cost_record_nom, 'MPL_costs': cost_record_mpl}
+    return return_values
+
+
+################################################################
+
+def plot_random_graph_simulation(plt_data):
+
+    # fig1 = plt.figure(constrained_layout=True)
+    # gs1 = GridSpec(2, 1, figure=fig1)
+    # ax1 = fig1.add_subplot(gs1[0, 0])
+    # ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
+    # ax2 = fig1.add_subplot(gs1[1, 0])
+    # ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
+
+    Nom_values = []
+    MPL_values = []
+
+    Nom_check = []
+    MPL_check = []
+
+    Nom_pos = [] # list(range(1, 1 + np.shape(plt_data['Nom_costs'])[1]))
+    MPL_pos = [] # list(range(1, 1 + np.shape(plt_data['MPL_costs'])[1]))
+
+    for i in range(0, np.shape(plt_data['Nom_costs'])[1]):
+        Nom_values.append([j for j in plt_data['Nom_costs'][:, i] if not np.isnan(j)])
+        Nom_check.append(np.sum(np.isnan(plt_data['Nom_costs'][:, i])))
+        if len(Nom_values[-1]) > 0:
+            Nom_pos.append(i+1)
+        else:
+            del Nom_values[-1]
+
+    for i in range(0, np.shape(plt_data['MPL_costs'])[1]):
+        MPL_values.append([j for j in plt_data['MPL_costs'][:, i] if not np.isnan(j)])
+        MPL_check.append(np.sum(np.isnan(plt_data['MPL_costs'][:, i])))
+        if len(MPL_values[-1]) > 0:
+            MPL_pos.append(i+1)
+        else:
+            del MPL_values[-1]
+
+    for i in range(0, len(Nom_check)):
+        if Nom_check[i] == 0:
+            Nom_check[i] = np.nan
+    for i in range(0, len(MPL_check)):
+        if MPL_check[i] == 0:
+            MPL_check[i] = np.nan
+        # temp = plt_data['MPL_costs'][:, i]
+        # temp = [j for j in temp if not np.isnan(j)]
+        # MPL_values.append(temp)
+    # print(Nom_values)
+    # print(len(Nom_values))
+    # print(Nom_values)
+    # print(Nom_pos)
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+    ax1 = fig1.add_subplot(gs1[0:2, 0])
+    # for i in range(0, np.shape(plt_data['Nom_costs'])[0]):
+    #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
+    # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
+    #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
+    ax1.violinplot(Nom_values, Nom_pos, showmeans=True)
+    ax1.violinplot(MPL_values, MPL_pos, showmeans=True)
+
+    mean_nom = [np.mean(i) for i in Nom_values]
+    mean_mpl = [np.mean(i) for i in MPL_values]
+
+    ax1.plot(range(1, len(mean_nom) + 1), mean_nom, color='C0', label='Nominal')
+    ax1.plot(range(1, len(mean_mpl) + 1), mean_mpl, color='C3', label='MPL')
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
+    ax1.legend()
+
+    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2.scatter(range(1, 1+len(Nom_check)), Nom_check, alpha=0.5, color='C0', label='Nominal')
+    ax2.scatter(range(1, 1+len(MPL_check)), MPL_check, alpha=0.5, color='C3', label='MPL')
+    ax2.legend()
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Fail of ')
+
+    fname = 'images/MPL_on_ER.pdf'
+    plt.savefig(fname, format='pdf')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def cost_comparison_print(data):
+    print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
+    for key in data['T_A']['costs']:
+        print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
+
+
+################################################################
+
 
 if __name__ == "__main__":
     print('Successfully compiled function file for system cost evaluation')

@@ -18,25 +18,28 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
 
 
-def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None):
+def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None, print_check=True):
     A = dc(A_in)
     nx = np.shape(A)[0]
 
     if B_in is None:
         B = np.zeros((nx, nx))
-        print('Control input matrix not given - assumed no controller')
+        if print_check:
+            print('Control input matrix not given - assumed no controller')
     else:
         if np.ndim(B_in) == 1:
             B = actuator_list_to_matrix(B_in, nx)
         elif np.ndim(B_in) == 2:
             B = dc(B_in)
             if np.shape(B)[0] != np.shape(A)[0]:
-                print('Check control input matrix size')
+                if print_check:
+                    print('Check control input matrix size')
                 return None
             elif np.shape(B)[1] != np.shape(A)[1]:
                 B = np.pad(B, ((0, 0), (0, np.shape(A)[1]-np.shape(B)[1])), 'constant')
         else:
-            print('Check control input matrix')
+            if print_check:
+                print('Check control input matrix')
             return None
     nu = np.shape(B)[1]
 
@@ -48,7 +51,8 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
     if alphai_in is None:
         alphai = [0]
         Ai = np.expand_dims(np.zeros_like(A), axis=0)
-        print('Actuator noise matrix not specified - assumed 0')
+        if print_check:
+            print('Actuator noise matrix not specified - assumed 0')
     else:
         alphai = dc(alphai_in)
         if Ai_in is None:
@@ -59,13 +63,15 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
             elif np.ndim(Ai_in) == 3:
                 Ai = dc(Ai_in)
             else:
-                print('Check actuator noise matrix')
+                if print_check:
+                    print('Check actuator noise matrix')
                 return None
 
     if betaj_in is None:
         betaj = [0]
         Bj = np.expand_dims(np.zeros_like(B), axis=0)
-        print('Control noise matrix not specified - assumed 0')
+        if print_check:
+            print('Control noise matrix not specified - assumed 0')
     else:
         betaj = dc(betaj_in)
         if Bj_in is None:
@@ -76,7 +82,8 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
             elif np.ndim(Bj_in) == 3:
                 Bj = dc(Bj_in)
             else:
-                print('Check control noise matrix')
+                if print_check:
+                    print('Check control noise matrix')
                 return None
 
     if Q_in is None:
@@ -90,19 +97,23 @@ def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, B
         R1 = dc(R1_in)
 
     if X0_in is None:
-        print('No initial state specified')
+        if print_check:
+            print('No initial state specified')
         X0 = np.zeros(nx)
         metric = 0
     elif np.ndim(X0_in) == 1:
-        print('Initial state vector specified')
+        if print_check:
+            print('Initial state vector specified')
         X0 = dc(X0_in)
         metric = 1
     elif np.ndim(X0_in) == 2:
-        print('Initial state distribution specified')
+        if print_check:
+            print('Initial state distribution specified')
         X0 = dc(X0_in)
         metric = 2
     else:
-        print('Check initial state distribution')
+        if print_check:
+            print('Check initial state distribution')
         return None
 
     sys = {'label': label, 'A': A, 'B': B, 'alphai': alphai, 'Ai': Ai, 'betaj': betaj, 'Bj': Bj, 'Q': Q, 'R1': R1, 'X0': X0, 'metric': metric}
@@ -245,7 +256,7 @@ def system_display_matrix(sys_in, fname=None):
     # nv = np.shape(sys['F'])[1]
 
     fig1 = plt.figure(constrained_layout=True)
-    gs1 = GridSpec(3, 4, figure=fig1)
+    gs1 = GridSpec(2, 4, figure=fig1)
 
     # cm = plt.get_cmap('Blues')
 
@@ -264,17 +275,8 @@ def system_display_matrix(sys_in, fname=None):
         ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
         ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    # ax3 = fig1.add_subplot(gs1[2, 0])
-    # a3 = ax3.imshow(actuator_list_to_matrix(sys['F'], nx), extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-    # ax3.set_title(r'$F$')
-    # plt.colorbar(a3, ax=ax3, location='bottom')
-    # ax3.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    # ax3.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
     net_alpha = np.sum(sys['alphai'])
     net_beta = np.sum(sys['betaj'])
-    # net_gamma = np.sum(sys['gammak'])
-    # if net_alpha+net_beta+net_gamma > 0:
     if net_alpha + net_beta > 0:
         ax4 = fig1.add_subplot(gs1[0, 1])
         ax4_col = 0
@@ -305,20 +307,6 @@ def system_display_matrix(sys_in, fname=None):
             ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
             ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-        # if net_gamma != 0:
-        #     a4 = ax4.scatter(range(1, len(sys['gammak']) + 1), sys['gammak'], c='C1', marker='3', alpha=0.8, label=r'$\gamma_k$')
-        #     ax4_col += 1
-        #     Fk_net = np.zeros_like(sys['F'])
-        #     for k in range(0, len(sys['gammak'])):
-        #         Fk_net += sys['Fk'][k, :, :]*sys['gammak'][k] #/ net_gamma
-        #     ax7 = fig1.add_subplot(gs1[2, 2])
-        #     a7 = ax7.imshow(Fk_net, extent=[0.5, nv + 0.5, nx + 0.5, 0.5])
-        #     plt.colorbar(a7, ax=ax7, location='bottom')
-        #     ax7.set_title(r'$\sum \gamma_k F_k$')
-        #     ax7.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-        #     ax7.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-        # ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']), len(sys['gammak']))))
         ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']))))
         ax4.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
         ax4.legend(markerfirst=False, framealpha=0.2, handlelength=1, labelspacing=0.4, columnspacing=0.5, ncol=ax4_col)
@@ -338,30 +326,11 @@ def system_display_matrix(sys_in, fname=None):
     ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
     ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
 
-    # ax12 = fig1.add_subplot(gs1[2, 3])
-    # a12 = ax12.imshow(sys['R2'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-    # ax12.set_title(r'$R_2$')
-    # plt.colorbar(a12, ax=ax12, location='bottom')
-    # ax12.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    # ax12.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-    # if not np.allclose(sys['W'], np.zeros_like(sys['W'])):
-    #     ax13 = fig1.add_subplot(gs1[1, 1])
-    #     a13 = ax13.imshow(sys['W'], extent=[0.5, nv + 0.5, nv + 0.5, 0.5])
-    #     ax13.set_title(r'$W$')
-    #     plt.colorbar(a13, ax=ax13, location='bottom')
-    #     ax13.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    #     ax13.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-
-    # if imgtitle is not None:
-    #     fig1.suptitle(imgtitle)
-    # elif sys['label'] is not None:
-    #     fig1.suptitle(sys['label'])
-
     if fname is None:
         fname = sys['label']
 
     try:
+        plt.suptitle(fname)
         plt.savefig('images/'+fname+'_system.pdf', format='pdf')
     except:
         print('Incorrect save name/directory')
@@ -403,6 +372,27 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
     return_values = {'A': A, 'eig_max': e, 'Adj': Adj}
     return return_values
 
+
+#####################################################
+
+def matrix_splitter(A):
+
+    A_split = np.expand_dims(np.zeros_like(A), axis=0)
+
+    for i in range(0, np.shape(A)[0]):
+        for j in range(0, np.shape(A)[1]):
+            if A[i, j] != 0:
+                # print(np.shape(A_split))
+                A_add = np.zeros_like(A)
+                A_add[i, j] = 1
+                # print(A_add)
+                A_split = np.append(A_split, np.expand_dims(A_add, axis=0), axis=0)
+
+    # print(np.shape(A_split))
+    A_split = A_split[1:, :, :]
+    # print(np.shape(A_split))
+
+    return A_split
 
 #####################################################
 
