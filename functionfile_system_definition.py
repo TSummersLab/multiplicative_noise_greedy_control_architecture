@@ -356,6 +356,12 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
                 return None
             else:
                 G = netx.generators.random_graphs.erdos_renyi_graph(nx, p)
+        elif type == 'BA':
+            if p is None:
+                print('Specify initial network size for BA-graph')
+                return None
+            else:
+                G = netx.generators.random_graphs.barabasi_albert_graph(nx, p)
         else:
             print('Check network type')
             return None
