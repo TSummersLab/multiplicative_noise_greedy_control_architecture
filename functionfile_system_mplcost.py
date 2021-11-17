@@ -980,6 +980,13 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
 def random_graph_empirical_simulation(sys_model, edge_parameter, net_type, number_of_iterations=50):
 
     print('Simulation start: Empirical study of random graphs')
+    if net_type == 'ER':
+        print('ER model')
+    elif net_type == 'BA':
+        print('BA model')
+    else:
+        print('ERROR: Specify network model')
+        return None
 
     nx = np.shape(sys_model['A'])[0]
     rho = np.max(np.abs(np.linalg.eigvals(sys_model['A'])))
