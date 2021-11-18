@@ -10,8 +10,9 @@ import matplotlib.patches as mpatches
 # from matplotlib.ticker import MaxNLocator
 
 matplotlib.rcParams['axes.titlesize'] = 10
-matplotlib.rcParams['xtick.labelsize'] = 8
-matplotlib.rcParams['ytick.labelsize'] = 8
+matplotlib.rcParams['xtick.labelsize'] = 10
+matplotlib.rcParams['ytick.labelsize'] = 10
+matplotlib.rcParams['axes.labelsize'] = 10
 # matplotlib.rcParams['image.cmap'] = 'Blues'
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -142,6 +143,7 @@ def cost_function_1(sys_in, initial_values=None):
 ################################################################
 
 def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
+    #Actuator selection for state-dependent multiplicative noise
     sys = dc(sys_in)
 
     if initial_values is None:
@@ -977,12 +979,12 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
 
 ################################################################
 
-def random_graph_empirical_simulation(sys_model, edge_parameter, net_type, number_of_iterations=50):
+def random_graph_empirical_simulation(sys_model, network_parameter, network_type, number_of_iterations=50):
 
     print('Simulation start: Empirical study of random graphs')
-    if net_type == 'ER':
+    if network_type == 'ER':
         print('ER model')
-    elif net_type == 'BA':
+    elif network_type == 'BA':
         print('BA model')
     else:
         print('ERROR: Specify network model')
@@ -1004,14 +1006,14 @@ def random_graph_empirical_simulation(sys_model, edge_parameter, net_type, numbe
 
         print("Realization: %s / %s" % (iter + 1, N_test))
 
-        if net_type == 'ER':
-            RG1 = create_graph(nx, type='ER', p=edge_parameter)
-            RG2 = create_graph(nx, type='ER', p=edge_parameter)
-            RG3 = create_graph(nx, type='ER', p=edge_parameter)
-        elif net_type == 'BA':
-            RG1 = create_graph(nx, type='BA', p=edge_parameter)
-            RG2 = create_graph(nx, type='BA', p=edge_parameter)
-            RG3 = create_graph(nx, type='BA', p=edge_parameter)
+        if network_type == 'ER':
+            RG1 = create_graph(nx, type='ER', p=network_parameter)
+            RG2 = create_graph(nx, type='ER', p=network_parameter)
+            RG3 = create_graph(nx, type='ER', p=network_parameter)
+        elif network_type == 'BA':
+            RG1 = create_graph(nx, type='BA', p=network_parameter)
+            RG2 = create_graph(nx, type='BA', p=network_parameter)
+            RG3 = create_graph(nx, type='BA', p=network_parameter)
 
         S_A = system_package(A_in=rho * RG1['A'], X0_in=X0, label_in='System A', print_check=False)
         if not system_check(S_A)['check']:
@@ -1034,7 +1036,7 @@ def random_graph_empirical_simulation(sys_model, edge_parameter, net_type, numbe
         for i in ret_sim['T_B']['costs']:
             cost_record_mpl[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
 
-    return_values = {'A_costs': cost_record_nom, 'B_costs': cost_record_mpl, 'e_p': edge_parameter, 'nx': nx, 'net_type': net_type}
+    return_values = {'A_costs': cost_record_nom, 'B_costs': cost_record_mpl, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test}
     print('Simulation end: Empirical study of random graphs')
     return return_values
 
@@ -1059,7 +1061,9 @@ def plot_random_graph_simulation(plt_data):
     Nom_pos = [] # list(range(1, 1 + np.shape(plt_data['A_costs'])[1]))
     MPL_pos = [] # list(range(1, 1 + np.shape(plt_data['B_costs'])[1]))
 
-    for i in range(0, np.shape(plt_data['A_costs'])[1]):
+    x_range = list(range(1, 1 + plt_data['nx'], 2))
+
+    for i in range(0, plt_data['nx']):
         Nom_values.append([j for j in plt_data['A_costs'][:, i] if not np.isnan(j)])
         Nom_check.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
         if len(Nom_values[-1]) > 0:
@@ -1067,7 +1071,7 @@ def plot_random_graph_simulation(plt_data):
         else:
             del Nom_values[-1]
 
-    for i in range(0, np.shape(plt_data['B_costs'])[1]):
+    for i in range(0, plt_data['nx']):
         MPL_values.append([j for j in plt_data['B_costs'][:, i] if not np.isnan(j)])
         MPL_check.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
         if len(MPL_values[-1]) > 0:
@@ -1098,6 +1102,7 @@ def plot_random_graph_simulation(plt_data):
     #     ax1.violinplot(plt_data['B_costs'][i, ~np.isnan(plt_data['B_costs'][i])], i+1, showmeans=True)
     ax1.violinplot(Nom_values, Nom_pos, showmeans=True)
     ax1.violinplot(MPL_values, MPL_pos, showmeans=True)
+    ax1.set_xticks(x_range)
 
     mean_nom = [np.mean(i) for i in Nom_values]
     mean_mpl = [np.mean(i) for i in MPL_values]
@@ -1114,8 +1119,9 @@ def plot_random_graph_simulation(plt_data):
     ax2.legend()
     ax2.set_xlabel(r'$|S|$')
     ax2.set_ylabel('Control Fail of '+str(np.shape(plt_data['B_costs'])[0]))
+    ax2.set_xticks(x_range)
 
-    fname = 'images/MPL_' + plt_data['net_type'] + '_' + str(plt_data['e_p']) + '_' + str(plt_data['nx']) + '.pdf'
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' %(fname))
