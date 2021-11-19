@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from copy import deepcopy as dc
 from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
 
@@ -752,7 +753,8 @@ def plot_simulation_comparison1(values):
         # ax1.plot(T_range, valuesB['states'][key], marker='x', alpha=0.5, color='C'+key)
         ax1.plot(T_range, valuesA['states'][key], linewidth=1, alpha=0.5, color='C' + key)
         ax1.plot(T_range, valuesB['states'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
-    ax1.set_xlabel(r'$t$')
+    # ax1.set_xlabel(r'$t$')
+    ax1.set_xticklabels([])
     ax1.set_ylabel(r'$x_t$')
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
@@ -761,7 +763,8 @@ def plot_simulation_comparison1(values):
         # ax2.plot(T_range, valuesB['control'][key], marker='x', alpha=0.5, color='C'+key)
         ax2.plot(T_range, valuesA['control'][key], linewidth=1, alpha=0.5, color='C' + key)
         ax2.plot(T_range, valuesB['control'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
-    ax2.set_xlabel(r'$t$')
+    # ax2.set_xlabel(r'$t$')
+    ax1.set_xticklabels([])
     ax2.set_ylabel(r'$u_t$')
 
     ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
@@ -791,7 +794,7 @@ def plot_simulation_comparison1(values):
 
 ################################################################
 
-def plot_simulation_comparison2(values, fname=None):
+def plot_simulation_comparison2(values):
     valuesA = dc(values['T_A'])
     valuesB = dc(values['T_B'])
 
@@ -809,7 +812,7 @@ def plot_simulation_comparison2(values, fname=None):
         # ax1.plot(T_range, valuesB['costs'][key], marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
-    ax1.set_xlabel(r'$t$')
+    # ax1.set_xlabel(r'$t$')
     ax1.set_ylabel(r'$J_t$')
     ax1.set_yscale('log')
 
@@ -1129,6 +1132,9 @@ def plot_random_graph_simulation(plt_data):
     ax1.legend()
 
     ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+
+    ax2.bar
+
     ax2.scatter(range(1, 1+len(Nom_check)), Nom_check, alpha=0.5, color='C0', label='A')
     ax2.scatter(range(1, 1+len(MPL_check)), MPL_check, alpha=0.5, color='C3', label='B')
     ax2.legend()
@@ -1150,9 +1156,36 @@ def plot_random_graph_simulation(plt_data):
 ################################################################
 
 def cost_comparison_print(data):
-    print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
+    # print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
+    # for key in data['T_A']['costs']:
+    #     print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
+
+    data_rows = ['Cost: A', 'Cost: B', 'Cost: A-B', 'Cost: A-B as %% of A']
+    data_cols = []
+
     for key in data['T_A']['costs']:
-        print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
+        data_cols.append(r'$|S|=$'+str(key))
+    cost_data = np.zeros([len(data_rows),len(data_cols)])
+
+    for i in range(0, len(data_cols)):
+        cost_data[0, i] = round(data['T_A']['costs'][str(i + 1)][-1], 3)
+        cost_data[1, i] = round(data['T_B']['costs'][str(i + 1)][-1], 3)
+        cost_data[2, i] = cost_data[0, i] - cost_data[1, i]
+        cost_data[3, i] = round((cost_data[0, i] - cost_data[1, i]) * 100 / cost_data[0, i], 3)
+
+    cost_table = pd.DataFrame(cost_data, data_rows, data_cols)
+    print(cost_table)
+
+    fig1 = plt.figure(tight_layout=True)
+    gs1 = GridSpec(1, 1, figure=fig1)
+    ax1 = fig1.add_subplot(gs1[0, 0])
+
+    ax1.table(cellText=cost_data.T, rowLabels=data_cols, colLabels=data_rows, loc='center')
+    ax1.axis('off')
+
+    plt.show()
+
+    return None
 
 
 ################################################################
