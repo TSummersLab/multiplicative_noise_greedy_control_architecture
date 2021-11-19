@@ -735,7 +735,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
 
 ################################################################
 
-def plot_simulation_comparison1(values, fname=None):
+def plot_simulation_comparison1(values):
 
     valuesA = dc(values['T_A'])
     valuesB = dc(values['T_B'])
@@ -776,6 +776,14 @@ def plot_simulation_comparison1(values, fname=None):
     ax3.set_ylabel(r'$J_t$')
     ax3.set_yscale('log')
     ax3.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
+
+    try:
+        fname = 'images/' + values['file_name'] + '_comparison1.pdf'
+        plt.savefig(fname, format='pdf')
+        print('Plot saved as %s' % fname)
+    except:
+        print('Plot not saved')
+
     plt.show()
 
     return None
@@ -810,7 +818,15 @@ def plot_simulation_comparison2(values, fname=None):
         ax2.plot(T_range, valuesA['costs'][key]-valuesB['costs'][key], alpha=0.5, color='C'+key, label=key)
     ax2.set_xlabel(r'$t$')
     ax2.set_ylabel(r'$J_t$ (A - B)')
+    ax2.set_yscale('log')
     ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+
+    try:
+        fname = 'images/' + values['file_name'] + '_comparison2.pdf'
+        plt.savefig(fname, format='pdf')
+        print('Plot saved as %s' %fname)
+    except:
+        print('Plot not saved')
 
     plt.show()
 
@@ -969,7 +985,6 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
                 print(SB['label'], ' B:\n', SB['B'])
                 print('B diff (%s - %s):' % (SA['label'], SB['label']))
                 print(SA['B'] - SB['B'])
-
 
     # print(SA['label'], ' B:\n', SA['B'])
     # print(SB['label'], ' B:\n', SB['B'])
