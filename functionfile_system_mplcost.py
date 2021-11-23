@@ -1063,18 +1063,17 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
 
 def plot_random_graph_simulation(plt_data):
 
-    # fig1 = plt.figure(constrained_layout=True)
-    # gs1 = GridSpec(2, 1, figure=fig1)
-    # ax1 = fig1.add_subplot(gs1[0, 0])
-    # ax1.violinplot(plt_data['A_costs'].T, showmeans=True)
-    # ax2 = fig1.add_subplot(gs1[1, 0])
-    # ax2.violinplot(plt_data['B_costs'].T, showmeans=True)
-
     Nom_values = []
     MPL_values = []
 
-    Nom_check = []
-    MPL_check = []
+    Nom_check_fail = []
+    MPL_check_fail = []
+
+    Nom_check_pass = []
+    MPL_check_pass = []
+
+    Nom_mean = []
+    MPL_mean = []
 
     Nom_pos = [] # list(range(1, 1 + np.shape(plt_data['A_costs'])[1]))
     MPL_pos = [] # list(range(1, 1 + np.shape(plt_data['B_costs'])[1]))
@@ -1083,7 +1082,7 @@ def plot_random_graph_simulation(plt_data):
 
     for i in range(0, plt_data['nx']):
         Nom_values.append([j for j in plt_data['A_costs'][:, i] if not np.isnan(j)])
-        Nom_check.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
+        Nom_check_fail.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
         if len(Nom_values[-1]) > 0:
             Nom_pos.append(i+1)
         else:
@@ -1091,25 +1090,20 @@ def plot_random_graph_simulation(plt_data):
 
     for i in range(0, plt_data['nx']):
         MPL_values.append([j for j in plt_data['B_costs'][:, i] if not np.isnan(j)])
-        MPL_check.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
+        MPL_check_fail.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
         if len(MPL_values[-1]) > 0:
             MPL_pos.append(i+1)
         else:
             del MPL_values[-1]
 
-    for i in range(0, len(Nom_check)):
-        if Nom_check[i] == 0:
-            Nom_check[i] = np.nan
-    for i in range(0, len(MPL_check)):
-        if MPL_check[i] == 0:
-            MPL_check[i] = np.nan
-        # temp = plt_data['B_costs'][:, i]
-        # temp = [j for j in temp if not np.isnan(j)]
-        # MPL_values.append(temp)
-    # print(Nom_values)
-    # print(len(Nom_values))
-    # print(Nom_values)
-    # print(Nom_pos)
+    for i in range(0, len(Nom_check_fail)):
+        Nom_check_pass.append(plt_data['N_test']-Nom_check_fail[i])
+        # if Nom_check_fail[i] == 0:
+        #     Nom_check_fail[i] = np.nan
+    for i in range(0, len(MPL_check_fail)):
+        MPL_check_pass.append(plt_data['N_test']-MPL_check_fail[i])
+        # if MPL_check_fail[i] == 0:
+        #     MPL_check_fail[i] = np.nan
 
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 1, figure=fig1)
@@ -1131,21 +1125,129 @@ def plot_random_graph_simulation(plt_data):
     ax1.set_ylabel('Cost')
     ax1.legend()
 
+    adjust = 0.1
+    xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
+    xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
+    y_tick_vals = range(0, plt_data['N_test']+1, 20)
+
     ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2.bar(xA_pos, Nom_check_pass, width=2*adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xA_pos, Nom_check_fail, width=2*adjust, bottom=Nom_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xB_pos, MPL_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xB_pos, MPL_check_fail, width=2*adjust, bottom=MPL_check_pass, color='C3', label='B Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
 
-    ax2.bar
 
-    ax2.scatter(range(1, 1+len(Nom_check)), Nom_check, alpha=0.5, color='C0', label='A')
-    ax2.scatter(range(1, 1+len(MPL_check)), MPL_check, alpha=0.5, color='C3', label='B')
-    ax2.legend()
+    # ax2.scatter(range(1, 1+len(Nom_check_fail)), Nom_check_fail, alpha=0.5, color='C0', label='A')
+    # ax2.scatter(range(1, 1+len(MPL_check_fail)), MPL_check_fail, alpha=0.5, color='C3', label='B')
+    ax2.legend(ncol=2, loc='lower right')
     ax2.set_xlabel(r'$|S|$')
-    ax2.set_ylabel('Control Fail of '+str(np.shape(plt_data['B_costs'])[0]))
+    ax2.set_ylabel('Control Check for\n' + str(np.shape(plt_data['B_costs'])[0]) + ' models')
     ax2.set_xticks(x_range)
+    ax2.set_yticks(y_tick_vals)
 
     fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' %(fname))
+    except:
+        print('Save failed')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def plot_random_graph_simulation2(plt_data):
+    A_values = []
+    B_values = []
+
+    A_check_fail = []
+    B_check_fail = []
+
+    A_check_pass = []
+    B_check_pass = []
+
+    A_mean = []
+    B_mean = []
+
+    A_median = []
+    B_median = []
+
+    A_pos = []
+    B_pos = []
+
+    # Use np.where to swap nan with inf - check for mean and median calculations that way
+
+    x_range = list(range(1, 1 + plt_data['nx'], 2))
+
+    for i in range(0, plt_data['nx']):
+        A_values.append([j for j in plt_data['A_costs'][:, i] if not np.isnan(j)])
+        A_check_fail.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
+        A_check_pass.append(plt_data['N_test']-A_check_fail[-1])
+        A_mean.append(np.mean(plt_data['A_costs'][:, i]))
+        A_median.append(np.median(plt_data['A_costs'][:, i]))
+        if len(A_values[-1]) == 0:
+            del A_values[-1]
+        else:
+            A_pos.append(i+1)
+
+        B_values.append([j for j in plt_data['B_costs'][:, i] if not np.isnan(j)])
+        B_check_fail.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
+        B_check_pass.append(plt_data['N_test']-B_check_fail[-1])
+        B_mean.append(np.mean(plt_data['B_costs'][:, i]))
+        B_median.append(np.median(plt_data['B_costs'][:, i]))
+        if len(B_values[-1]) == 0:
+            del B_values[-1]
+        else:
+            B_pos.append(i+1)
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(3, 1, figure=fig1)
+
+    ax1 = fig1.add_subplot(gs1[0:2, 0])
+
+    # ax1.boxplot(A_values, A_pos, showmeans=True)
+    # ax1.boxplot(B_values, B_pos, showmeans=True)
+
+    print(A_mean)
+    print(B_mean)
+
+    print(A_median)
+    print(B_median)
+
+    ax1.plot(A_pos, A_mean, color='C0', label='mean(A)')
+    ax1.plot(B_pos, B_mean, color='C3', label='mean(B)')
+
+    ax1.plot(A_pos, A_median, color='C0', label='median(A)', linestyle='dashed')
+    ax1.plot(B_pos, B_median, color='C3', label='median(B)', linestyle='dashed')
+
+    ax1.set_xticks(x_range)
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
+    ax1.legend()
+
+    adjust = 0.1
+    xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
+    xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
+    y_tick_vals = range(0, plt_data['N_test'] + 1, 20)
+
+    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xA_pos, A_check_fail, width=2 * adjust, bottom=A_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xB_pos, B_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    ax2.bar(xB_pos, B_check_fail, width=2 * adjust, bottom=B_check_pass, color='C3', label='B Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+
+    ax2.legend(ncol=2, loc='lower right')
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Check for\n' + str(np.shape(plt_data['B_costs'])[0]) + ' models')
+    ax2.set_xticks(x_range)
+    ax2.set_yticks(y_tick_vals)
+
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_2.pdf'
+    try:
+        plt.savefig(fname, format='pdf')
+        print('File saved as: %s' % (fname))
     except:
         print('Save failed')
     plt.show()
