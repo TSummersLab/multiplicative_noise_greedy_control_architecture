@@ -1032,6 +1032,9 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
             RG1 = create_graph(nx, type='BA', p=network_parameter)
             RG2 = create_graph(nx, type='BA', p=network_parameter)
             RG3 = create_graph(nx, type='BA', p=network_parameter)
+        else:
+            print('ERROR: Specify network model')
+            return None
 
         S_A = system_package(A_in=rho * RG1['A'], X0_in=X0, label_in='System A', print_check=False)
         if not system_check(S_A)['check']:
@@ -1145,7 +1148,7 @@ def plot_random_graph_simulation(plt_data):
     ax2.set_xticks(x_range)
     ax2.set_yticks(y_tick_vals)
 
-    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '.pdf'
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_Comp1.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' %(fname))
@@ -1159,6 +1162,12 @@ def plot_random_graph_simulation(plt_data):
 ################################################################
 
 def plot_random_graph_simulation2(plt_data):
+    A_costs = dc(plt_data['A_costs'])
+    B_costs = dc(plt_data['B_costs'])
+
+    A_costs = np.where(np.isnan(A_costs), np.inf, A_costs)
+    B_costs = np.where(np.isnan(B_costs), np.inf, B_costs)
+
     A_values = []
     B_values = []
 
@@ -1182,57 +1191,50 @@ def plot_random_graph_simulation2(plt_data):
     x_range = list(range(1, 1 + plt_data['nx'], 2))
 
     for i in range(0, plt_data['nx']):
-        A_values.append([j for j in plt_data['A_costs'][:, i] if not np.isnan(j)])
-        A_check_fail.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
+
+        A_values.append([j for j in A_costs[:, i] if not np.isinf(j)])
+        A_check_fail.append(np.sum(np.isinf(A_costs[:, i])))
         A_check_pass.append(plt_data['N_test']-A_check_fail[-1])
-        A_mean.append(np.mean(plt_data['A_costs'][:, i]))
-        A_median.append(np.median(plt_data['A_costs'][:, i]))
+        A_mean.append(np.mean(A_costs[:, i]))
+        A_median.append(np.median(A_costs[:, i]))
         if len(A_values[-1]) == 0:
             del A_values[-1]
         else:
             A_pos.append(i+1)
 
-        B_values.append([j for j in plt_data['B_costs'][:, i] if not np.isnan(j)])
-        B_check_fail.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
+        B_values.append([j for j in B_costs[:, i] if not np.isinf(j)])
+        B_check_fail.append(np.sum(np.isinf(B_costs[:, i])))
         B_check_pass.append(plt_data['N_test']-B_check_fail[-1])
-        B_mean.append(np.mean(plt_data['B_costs'][:, i]))
-        B_median.append(np.median(plt_data['B_costs'][:, i]))
+        B_mean.append(np.mean(B_costs[:, i]))
+        B_median.append(np.median(B_costs[:, i]))
         if len(B_values[-1]) == 0:
             del B_values[-1]
         else:
             B_pos.append(i+1)
 
     fig1 = plt.figure(constrained_layout=True)
-    gs1 = GridSpec(3, 1, figure=fig1)
+    gs1 = GridSpec(2, 1, figure=fig1)
 
-    ax1 = fig1.add_subplot(gs1[0:2, 0])
+    ax1 = fig1.add_subplot(gs1[0, 0])
 
-    # ax1.boxplot(A_values, A_pos, showmeans=True)
-    # ax1.boxplot(B_values, B_pos, showmeans=True)
+    ax1.plot(range(1, 1 + plt_data['nx']), A_mean, color='C0', marker='o', alpha=0.7, label='mean(A)')
+    ax1.plot(range(1, 1 + plt_data['nx']), B_mean, color='C3', marker='x', alpha=0.7, label='mean(B)')
 
-    print(A_mean)
-    print(B_mean)
-
-    print(A_median)
-    print(B_median)
-
-    ax1.plot(A_pos, A_mean, color='C0', label='mean(A)')
-    ax1.plot(B_pos, B_mean, color='C3', label='mean(B)')
-
-    ax1.plot(A_pos, A_median, color='C0', label='median(A)', linestyle='dashed')
-    ax1.plot(B_pos, B_median, color='C3', label='median(B)', linestyle='dashed')
+    ax1.plot(range(1, 1 + plt_data['nx']), A_median, color='C0', marker='o', alpha=0.7, label='median(A)', linestyle='dashed')
+    ax1.plot(range(1, 1 + plt_data['nx']), B_median, color='C3', marker='x', alpha=0.7, label='median(B)', linestyle='dashed')
 
     ax1.set_xticks(x_range)
+    ax1.xaxis.set_tick_params(labelbottom=False)
     ax1.set_yscale('log')
     ax1.set_ylabel('Cost')
-    ax1.legend()
+    ax1.legend(ncol=2, framealpha=0.5, loc='upper right')
 
     adjust = 0.1
     xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
     xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
-    y_tick_vals = range(0, plt_data['N_test'] + 1, 20)
+    y_tick_vals = range(0, plt_data['N_test'] + 1, min([plt_data['N_test'], 20]))
 
-    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
     ax2.bar(xA_pos, A_check_fail, width=2 * adjust, bottom=A_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
     ax2.bar(xB_pos, B_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
@@ -1240,11 +1242,11 @@ def plot_random_graph_simulation2(plt_data):
 
     ax2.legend(ncol=2, loc='lower right')
     ax2.set_xlabel(r'$|S|$')
-    ax2.set_ylabel('Control Check for\n' + str(np.shape(plt_data['B_costs'])[0]) + ' models')
+    ax2.set_ylabel('Control Check')
     ax2.set_xticks(x_range)
     ax2.set_yticks(y_tick_vals)
 
-    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_2.pdf'
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_Comp2.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' % (fname))
