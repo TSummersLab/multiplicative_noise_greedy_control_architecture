@@ -226,7 +226,7 @@ def sys_to_file(sys_in, f_name=None):
 
     pickle.dump(sys, f_open)
     f_open.close()
-    print('System saved to file @', f_name,'\n')
+    print('System saved to file @', f_name, '\n')
     return None
 
 
@@ -242,7 +242,7 @@ def sys_from_file(f_name='sys_model'):
 
     sys = pickle.load(f_open)
     f_open.close()
-    print('System read from file @', f_name,'\n')
+    print('System read from file @', f_name, '\n')
     return sys
 
 

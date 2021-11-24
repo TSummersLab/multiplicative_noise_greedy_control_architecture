@@ -919,9 +919,13 @@ def plot_simulation_comparison2(values):
 # 
 # ################################################################
 
-def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
-    SA = dc(sysA_in)
-    SB = dc(sys2_in)
+
+def actuator_comparison(values, disptext=True, figplt=True):
+    SA = dc(values['system_A'])
+    SB = dc(values['system_B'])
+# def actuator_comparison(sysA_in, sysB_in, disptext=True, figplt=True):
+#     SA = dc(sysA_in)
+#     SB = dc(sysB_in)
 
     return_value = {}
 
@@ -980,17 +984,24 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
             ax1.set_xlabel(r'$|S|$')
             ax1.set_ylabel('Node number')
             ax1.set_title('Actuator Set comparison')
-            ax1.legend([SA['label'], SB['label']], framealpha=0.5)
+            ax1.legend(['A', 'B'], framealpha=0.5)
             plt.show()
         else:
             if disptext:
-                print(SA['label'], ' B:\n', SA['B'])
-                print(SB['label'], ' B:\n', SB['B'])
+                print('System A', ' B:\n', SA['B'])
+                print('System B', ' B:\n', SB['B'])
                 print('B diff (%s - %s):' % (SA['label'], SB['label']))
                 print(SA['B'] - SB['B'])
 
     # print(SA['label'], ' B:\n', SA['B'])
     # print(SB['label'], ' B:\n', SB['B'])
+    if figplt:
+        try:
+            fname = 'images/' + values['file_name'] + '_actcomparison.pdf'
+            plt.savefig(fname, format='pdf')
+            print('Plot saved as %s' %fname)
+        except:
+            print('Plot not saved')
 
     return return_value
 
@@ -1015,10 +1026,8 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
 
     N_test = number_of_iterations
 
-    cost_record_nom = np.nan * np.zeros((N_test, nx))
-    check_record_nom = np.zeros(nx)
-    cost_record_mpl = np.nan * np.zeros((N_test, nx))
-    check_record_mpl = np.zeros(nx)
+    cost_record_A = np.nan * np.zeros((N_test, nx))
+    cost_record_B = np.nan * np.zeros((N_test, nx))
 
     for iter in range(0, N_test):
 
@@ -1038,13 +1047,13 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
 
         S_A = system_package(A_in=rho * RG1['A'], X0_in=X0, label_in='System A', print_check=False)
         if not system_check(S_A)['check']:
-            print('Nominal System Error')
+            print('System A Error')
 
-        Ai_MPL = matrix_splitter(np.abs(RG3['Adj']-RG1['Adj']))
-        alphai_MPL = alphai*np.ones(np.shape(Ai_MPL)[0])
-        S_B = system_package(A_in=rho*RG1['A'], alphai_in=alphai_MPL, Ai_in=Ai_MPL, X0_in=X0, label_in='System B', print_check=False)
+        Ai_B = matrix_splitter(np.abs(RG3['Adj']-RG1['Adj']))
+        alphai_B = alphai*np.ones(np.shape(Ai_B)[0])
+        S_B = system_package(A_in=rho*RG1['A'], alphai_in=alphai_B, Ai_in=Ai_B, X0_in=X0, label_in='System B', print_check=False)
         if not system_check(S_B)['check']:
-            print('MPL System Error')
+            print('System B Error')
 
         S_C = system_package(A_in=rho*RG3['A'], X0_in=X0, alphai_in=alphai, Ai_in=RG2['Adj'], label_in='System C', print_check=False)
         if not system_check(S_C)['check']:
@@ -1053,11 +1062,11 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
         ret_sim = simulation_model_comparison(S_A, S_B, S_C)
 
         for i in ret_sim['T_A']['costs']:
-            cost_record_nom[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
+            cost_record_A[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
         for i in ret_sim['T_B']['costs']:
-            cost_record_mpl[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
+            cost_record_B[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
 
-    return_values = {'A_costs': cost_record_nom, 'B_costs': cost_record_mpl, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test}
+    return_values = {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test}
     print('Simulation end: Empirical study of random graphs')
     return return_values
 
@@ -1212,6 +1221,12 @@ def plot_random_graph_simulation2(plt_data):
         else:
             B_pos.append(i+1)
 
+    A_check_pass = [a/plt_data['N_test'] for a in A_check_pass]
+    A_check_fail = [a / plt_data['N_test'] for a in A_check_fail]
+
+    B_check_pass = [a / plt_data['N_test'] for a in B_check_pass]
+    B_check_fail = [a / plt_data['N_test'] for a in B_check_fail]
+
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(2, 1, figure=fig1)
 
@@ -1232,7 +1247,7 @@ def plot_random_graph_simulation2(plt_data):
     adjust = 0.1
     xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
     xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
-    y_tick_vals = range(0, plt_data['N_test'] + 1, min([plt_data['N_test'], 20]))
+    y_tick_vals = [0, 0.5, 1]
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
@@ -1242,7 +1257,7 @@ def plot_random_graph_simulation2(plt_data):
 
     ax2.legend(ncol=2, loc='lower right')
     ax2.set_xlabel(r'$|S|$')
-    ax2.set_ylabel('Control Check')
+    ax2.set_ylabel('Control Check \n(' + str(plt_data['N_test']) + ' Realizations)')
     ax2.set_xticks(x_range)
     ax2.set_yticks(y_tick_vals)
 
@@ -1259,26 +1274,26 @@ def plot_random_graph_simulation2(plt_data):
 
 ################################################################
 
-def cost_comparison_print(data):
-    # print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
-    # for key in data['T_A']['costs']:
-    #     print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
+def cost_comparison_print(values):
+    # print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (values['system_C']['label'], values['system_A']['label'], values['system_B']['label']))
+    # for key in values['T_A']['costs']:
+    #     print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, values['T_A']['costs'][key][-1], values['T_B']['costs'][key][-1], values['T_A']['costs'][key][-1] - values['T_B']['costs'][key][-1], (values['T_A']['costs'][key][-1] - values['T_B']['costs'][key][-1]) * 100 / values['T_A']['costs'][key][-1]))
 
-    data_rows = ['Cost: A', 'Cost: B', 'Cost: A-B', 'Cost: A-B as %% of A']
+    data_rows = ["A", "B", "A-B", "(A-B)/A x100"]
     data_cols = []
 
-    for key in data['T_A']['costs']:
+    for key in values['T_A']['costs']:
         data_cols.append(r'$|S|=$'+str(key))
-    cost_data = np.zeros([len(data_rows),len(data_cols)])
+    cost_data = np.zeros([len(data_rows), len(data_cols)])
 
     for i in range(0, len(data_cols)):
-        cost_data[0, i] = round(data['T_A']['costs'][str(i + 1)][-1], 3)
-        cost_data[1, i] = round(data['T_B']['costs'][str(i + 1)][-1], 3)
-        cost_data[2, i] = cost_data[0, i] - cost_data[1, i]
-        cost_data[3, i] = round((cost_data[0, i] - cost_data[1, i]) * 100 / cost_data[0, i], 3)
+        cost_data[0, i] = round(values['T_A']['costs'][str(i + 1)][-1], 4)
+        cost_data[1, i] = round(values['T_B']['costs'][str(i + 1)][-1], 4)
+        cost_data[2, i] = round(cost_data[0, i] - cost_data[1, i], 4)
+        cost_data[3, i] = round((cost_data[0, i] - cost_data[1, i])*100 / cost_data[0, i], 4)
 
     cost_table = pd.DataFrame(cost_data, data_rows, data_cols)
-    print(cost_table)
+    print(cost_table.T)
 
     fig1 = plt.figure(tight_layout=True)
     gs1 = GridSpec(1, 1, figure=fig1)
@@ -1286,6 +1301,13 @@ def cost_comparison_print(data):
 
     ax1.table(cellText=cost_data.T, rowLabels=data_cols, colLabels=data_rows, loc='center')
     ax1.axis('off')
+
+    try:
+        fname = 'images/' + values['file_name'] + '_costcomparison.pdf'
+        plt.savefig(fname, format='pdf', bbox_inches='tight')
+        print('Plot saved as %s' % fname)
+    except:
+        print('Plot not saved')
 
     plt.show()
 
