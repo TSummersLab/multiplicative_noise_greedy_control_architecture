@@ -4,7 +4,8 @@ This is a experimental simulation study of actuator selection for discrete-time 
 
 - Test-Branch4 Targets:
   - Random graph testing
-    - Actuator selection statistics for ER graphs with different edge probabilities
-    - Actuator selection for BA graphs and other random graph models
+    - Plots
+      - Individual plots for a single set of parameters
+      - Combined plots for comparing a set of parameter changes
   - Actuator selection for noisy actuators
     - Show that optimal actuator set can change for noisy actuators

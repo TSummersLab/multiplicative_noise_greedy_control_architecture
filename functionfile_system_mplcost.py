@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 import pandas as pd
 from copy import deepcopy as dc
 from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
@@ -8,12 +9,17 @@ import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.gridspec import GridSpec
 import matplotlib.patches as mpatches
-# from matplotlib.ticker import MaxNLocator
+import matplotlib.lines as mlines
+from matplotlib.ticker import MaxNLocator
 
-matplotlib.rcParams['axes.titlesize'] = 10
-matplotlib.rcParams['xtick.labelsize'] = 10
-matplotlib.rcParams['ytick.labelsize'] = 10
-matplotlib.rcParams['axes.labelsize'] = 10
+matplotlib.rcParams['axes.titlesize'] = 12
+matplotlib.rcParams['xtick.labelsize'] = 12
+matplotlib.rcParams['ytick.labelsize'] = 12
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['legend.fontsize'] = 10
+matplotlib.rcParams['legend.title_fontsize'] = 10
+matplotlib.rcParams['legend.framealpha'] = 0.5
+matplotlib.rcParams['lines.markersize'] = 5
 # matplotlib.rcParams['image.cmap'] = 'Blues'
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -984,7 +990,7 @@ def actuator_comparison(values, disptext=True, figplt=True):
             ax1.set_xlabel(r'$|S|$')
             ax1.set_ylabel('Node number')
             ax1.set_title('Actuator Set comparison')
-            ax1.legend(['A', 'B'], framealpha=0.5)
+            ax1.legend(['A', 'B'])
             plt.show()
         else:
             if disptext:
@@ -1008,19 +1014,17 @@ def actuator_comparison(values, disptext=True, figplt=True):
 
 ################################################################
 
-def random_graph_empirical_simulation(sys_model, network_parameter, network_type, number_of_iterations=50):
+def random_graph_empirical_simulation(sys_model, network_parameter, network_type, number_of_iterations=50, save_check=True):
 
-    print('Simulation start: Empirical study of random graphs')
-    if network_type == 'ER':
-        print('ER model')
-    elif network_type == 'BA':
-        print('BA model')
-    else:
-        print('ERROR: Specify network model')
+    if network_type != 'ER' and network_type != 'BA':
+        print('ERROR: Check network model')
         return None
 
+    print('\nSimulation start: Empirical study of random graphs\n')
+    print('Model: ' + network_type + '\n')
+
     nx = np.shape(sys_model['A'])[0]
-    rho = np.max(np.abs(np.linalg.eigvals(sys_model['A'])))
+    rho = round(np.max(np.abs(np.linalg.eigvals(sys_model['A']))), 1)
     alphai = dc(sys_model['alphai'])
     X0 = dc(sys_model['X0'])
 
@@ -1066,9 +1070,72 @@ def random_graph_empirical_simulation(sys_model, network_parameter, network_type
         for i in ret_sim['T_B']['costs']:
             cost_record_B[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
 
-    return_values = {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test}
-    print('Simulation end: Empirical study of random graphs')
+    return_values = {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test, 'rho': rho, 'alphai': alphai}
+    print('\nSimulation end: Empirical study of random graphs\n')
+
+    if save_check:
+        try:
+            fname = 'system_test/MPL_' + str(return_values['N_test']) + '_' + return_values['network_type'] + '_' + str(return_values['network_parameter']) + '_' + str(return_values['nx']) + '_' + str(return_values['rho']) + '_' + str(return_values['alphai'][0]) + '.pickle'
+            f_open = open(fname, 'wb')
+            pickle.dump(return_values, f_open)
+            f_open.close()
+            print('System saved to file @', fname, '\n')
+        except:
+            print('Save failed')
+
     return return_values
+
+
+################################################################
+
+def random_graph_empirical_simulation_read(sys_model, network_parameter, network_type, number_of_iterations=50):
+
+    N_test = number_of_iterations
+    nx = np.shape(sys_model['A'])[0]
+    rho = round(np.max(np.linalg.eigvals(sys_model['A'])), 1)
+    alphai = sys_model['alphai']
+    fname = 'system_test/MPL_' + str(N_test) + '_' + network_type + '_' + str(network_parameter) + '_' + str(nx) + '_' + str(rho) + '_' + str(alphai[0]) + '.pickle'
+
+    try:
+        f_open = open(fname, 'rb')
+    except:
+        print('ERROR: File @', fname, ' does not exist or not readable')
+        return None
+
+    return_values = pickle.load(f_open)
+    f_open.close()
+    print('System read from file @', fname, '\n')
+    return return_values
+
+
+################################################################
+
+def random_graph_empirical_simulation_comparison(N_test, Network_type, Network_parameter, nx, alphai, rho):
+
+    simulation_values = {}
+    parameter_list = {}
+
+    if type(Network_parameter) is list:
+        parameter_list['p_list'] = Network_parameter
+        parameter_list['p_type'] = 'p'
+        for i in range(0, len(Network_parameter)):
+            S_base_model = system_package(A_in=rho * create_graph(nx)['A'], alphai_in=alphai,
+                                          Ai_in=create_graph(nx)['A'], label_in='System Model', print_check=False)
+            simulation_values[i] = random_graph_empirical_simulation_read(S_base_model, Network_parameter[i],
+                                                                          Network_type, N_test)
+    elif type(nx) is list:
+        parameter_list['p_list'] = nx
+        parameter_list['p_type'] = 'nx'
+        for i in range(0, len(nx)):
+            S_base_model = system_package(A_in=rho * create_graph(nx[i])['A'], alphai_in=alphai,
+                                          Ai_in=create_graph(nx[i])['A'], label_in='System Model', print_check=False)
+            simulation_values[i] = random_graph_empirical_simulation_read(S_base_model, Network_parameter, Network_type,
+                                                                          N_test)
+    else:
+        print('ERROR: Check comparison list')
+        return None
+
+    return simulation_values, parameter_list
 
 
 ################################################################
@@ -1157,7 +1224,7 @@ def plot_random_graph_simulation(plt_data):
     ax2.set_xticks(x_range)
     ax2.set_yticks(y_tick_vals)
 
-    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_Comp1.pdf'
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_' + str(plt_data['rho']) + '_Comp1.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' %(fname))
@@ -1222,46 +1289,56 @@ def plot_random_graph_simulation2(plt_data):
             B_pos.append(i+1)
 
     A_check_pass = [a/plt_data['N_test'] for a in A_check_pass]
-    A_check_fail = [a / plt_data['N_test'] for a in A_check_fail]
+    # A_check_fail = [a / plt_data['N_test'] for a in A_check_fail]
 
     B_check_pass = [a / plt_data['N_test'] for a in B_check_pass]
-    B_check_fail = [a / plt_data['N_test'] for a in B_check_fail]
+    # B_check_fail = [a / plt_data['N_test'] for a in B_check_fail]
+
+    x_val = range(1, 1 + plt_data['nx'])
 
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(2, 1, figure=fig1)
 
     ax1 = fig1.add_subplot(gs1[0, 0])
 
-    ax1.plot(range(1, 1 + plt_data['nx']), A_mean, color='C0', marker='o', alpha=0.7, label='mean(A)')
-    ax1.plot(range(1, 1 + plt_data['nx']), B_mean, color='C3', marker='x', alpha=0.7, label='mean(B)')
+    ax1.plot(x_val, A_mean, color='C0', marker='o', alpha=0.7, label='mean(A)')
+    ax1.plot(x_val, B_mean, color='C3', marker='o', alpha=0.7, label='mean(B)')
 
-    ax1.plot(range(1, 1 + plt_data['nx']), A_median, color='C0', marker='o', alpha=0.7, label='median(A)', linestyle='dashed')
-    ax1.plot(range(1, 1 + plt_data['nx']), B_median, color='C3', marker='x', alpha=0.7, label='median(B)', linestyle='dashed')
+    ax1.plot(x_val, A_median, color='C0', marker='o', alpha=0.7, label='median(A)', linestyle='dashed')
+    ax1.plot(x_val, B_median, color='C3', marker='o', alpha=0.7, label='median(B)', linestyle='dashed')
 
     ax1.set_xticks(x_range)
     ax1.xaxis.set_tick_params(labelbottom=False)
     ax1.set_yscale('log')
     ax1.set_ylabel('Cost')
-    ax1.legend(ncol=2, framealpha=0.5, loc='upper right')
+    ax1.grid(visible=True, which='both', axis='x', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax1.legend(ncol=2, loc='best')
+    # ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
 
-    adjust = 0.1
-    xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
-    xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
+    # adjust = 0.1
+    # xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
+    # xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
     y_tick_vals = [0, 0.5, 1]
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
-    ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
-    ax2.bar(xA_pos, A_check_fail, width=2 * adjust, bottom=A_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
-    ax2.bar(xB_pos, B_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
-    ax2.bar(xB_pos, B_check_fail, width=2 * adjust, bottom=B_check_pass, color='C3', label='B Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xA_pos, A_check_fail, width=2 * adjust, bottom=A_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xB_pos, B_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xB_pos, B_check_fail, width=2 * adjust, bottom=B_check_pass, color='C3', label='B Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+
+    ax2.plot(x_val, A_check_pass, color='C0', marker='o', label='A', alpha=0.7)
+    ax2.plot(x_val, B_check_pass, color='C3', marker='o', label='B', alpha=0.7)
 
     ax2.legend(ncol=2, loc='lower right')
     ax2.set_xlabel(r'$|S|$')
-    ax2.set_ylabel('Control Check \n(' + str(plt_data['N_test']) + ' Realizations)')
-    ax2.set_xticks(x_range)
+    ax2.set_ylabel('Control Pass Fraction \n(' + str(plt_data['N_test']) + ' Realizations)')
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=5, min_n_ticks=4, integer=True))
+    ax2.set_ylim(-0.1, 1.1)
+    ax2.grid(color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
     ax2.set_yticks(y_tick_vals)
 
-    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_Comp2.pdf'
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_' + str(plt_data['rho']) + '_Comp2.pdf'
     try:
         plt.savefig(fname, format='pdf')
         print('File saved as: %s' % (fname))
@@ -1271,6 +1348,125 @@ def plot_random_graph_simulation2(plt_data):
 
     return None
 
+
+################################################################
+
+def plot_random_graph_simulation3(plt_data, parameter_list):
+
+    # plt_data - dictionary indexed by test parameter of dictionary of test values
+    # Test values: {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test, 'rho': rho, 'alphai': alphai}
+
+    check_values = ['N_test', 'network_type']
+
+    for key1 in plt_data:
+        for key2 in plt_data:
+            for key3 in check_values:
+                if plt_data[key1][key3] != plt_data[key2][key3]:
+                    print('ERROR: Data check fails: ', str(plt_data[key1][key3]), ' vs ', str(plt_data[key2][key3]))
+                    return None
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(2, 1, figure=fig1)
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+
+    plot_alpha = [0.8, 0.3, 0.3]
+    plot_marker = ['o', 'v', 's']
+    plot_line_size = [2, 1, 1]
+
+    y_tick_vals = [0, 0.5, 1]
+    nx = [1]
+
+    count = 0
+
+    for p in plt_data:
+
+        if plt_data[p]['nx'] not in nx:
+            nx.append(plt_data[p]['nx'])
+
+        A_costs = dc(plt_data[p]['A_costs'])
+        B_costs = dc(plt_data[p]['B_costs'])
+
+        A_costs = np.where(np.isnan(A_costs), np.inf, A_costs)
+        B_costs = np.where(np.isnan(B_costs), np.inf, B_costs)
+
+        A_values = []
+        B_values = []
+
+        A_check_pass = []
+        B_check_pass = []
+
+        A_mean = []
+        B_mean = []
+
+        A_median = []
+        B_median = []
+
+        for i in range(0, plt_data[p]['nx']):
+
+            A_values.append([j for j in A_costs[:, i] if not np.isinf(j)])
+            A_check_pass.append((plt_data[p]['N_test'] - np.sum(np.isinf(A_costs[:, i])))/plt_data[p]['N_test'])
+            A_mean.append(np.mean(A_costs[:, i]))
+            A_median.append(np.median(A_costs[:, i]))
+
+            B_values.append([j for j in B_costs[:, i] if not np.isinf(j)])
+            B_check_pass.append((plt_data[p]['N_test'] - np.sum(np.isinf(B_costs[:, i])))/plt_data[p]['N_test'])
+            B_mean.append(np.mean(B_costs[:, i]))
+            B_median.append(np.median(B_costs[:, i]))
+
+        x_val = range(1, 1 + plt_data[p]['nx'])
+
+        ax1.plot(x_val, A_mean, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count], alpha=plot_alpha[count], label='mean(A)')
+        ax1.plot(x_val, B_mean, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count], alpha=plot_alpha[count], label='mean(B)')
+
+        ax1.plot(x_val, A_median, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count], alpha=plot_alpha[count], label='median(A)', linestyle='dashed')
+        ax1.plot(x_val, B_median, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count], alpha=plot_alpha[count], label='median(B)', linestyle='dashed')
+
+        ax2.plot(x_val, A_check_pass, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count], label='A', alpha=plot_alpha[count])
+        ax2.plot(x_val, B_check_pass, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count], label='B', alpha=plot_alpha[count])
+
+        count += 1
+
+    ax1.xaxis.set_tick_params(labelbottom=False)
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
+    ax1.grid(visible=True, which='both', axis='x', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Pass Fraction \n(' + str(plt_data[0]['N_test']) + ' Realizations)')
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=5, min_n_ticks=5, integer=True))
+    ax2.set_xlim(0.5, max(nx)+0.5)
+    ax2.set_xticks(nx)
+    ax2.set_ylim(-0.1, 1.1)
+    ax2.set_yticks(y_tick_vals)
+    ax2.grid(color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+
+    handle_list1 = [mlines.Line2D([], [], color='C2', linestyle='solid', label='Mean'), mlines.Line2D([], [], color='C2', linestyle='dashed', label='Median')]
+    ax1.legend(handles=handle_list1, loc='upper left')
+
+    handle_list2 = []
+    for i in range(0, len(parameter_list['p_list'])):
+        handle_list2.append(mlines.Line2D([], [], color='C2', marker=plot_marker[i], markersize=10, label=parameter_list['p_type']+'='+str(parameter_list['p_list'][i])))
+    handle_list2.append(mpatches.Patch(color='C0', label='A'))
+    handle_list2.append(mpatches.Patch(color='C3', label='B'))
+    ax2.legend(handles=handle_list2, loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2)
+
+    fname = 'images/MPL_' + str(plt_data[0]['N_test']) + '_' + plt_data[0]['network_type'] + '_' + str(plt_data[0]['rho']) + '_' + parameter_list['p_type'] + '_'
+    for i in range(0, len(parameter_list['p_list'])):
+        fname += str(parameter_list['p_list'][i])
+        if i+1 < len(parameter_list['p_list']):
+            fname += 'vs'
+    fname += 'Comp.pdf'
+
+    try:
+        plt.savefig(fname, format='pdf')
+        print('File saved as: %s' % (fname))
+    except:
+        print('Save failed')
+    plt.show()
+
+    return None
 
 ################################################################
 
