@@ -1489,6 +1489,7 @@ def cost_comparison_print(values):
         cost_data[3, i] = round((cost_data[0, i] - cost_data[1, i])*100 / cost_data[0, i], 4)
 
     cost_table = pd.DataFrame(cost_data, data_rows, data_cols)
+    cost_table.style.format(formatter='{:0.2}e', na_rep='NA')
     print(cost_table.T)
 
     fig1 = plt.figure(tight_layout=True)
