@@ -328,12 +328,18 @@ def system_display_matrix(sys_in, fname=None):
 
     if fname is None:
         fname = sys['label']
+        plt.suptitle(fname)
+    else:
+        plt.suptitle(fname)
+        fname += ('_' +sys['label'])
+
+    fname = 'images/' + fname + '.pdf'
 
     try:
-        plt.suptitle(fname)
-        plt.savefig('images/'+fname+'_system.pdf', format='pdf')
+        plt.savefig(fname, format='pdf')
+        print('Image save @', fname)
     except:
-        print('Incorrect save name/directory')
+        print('Inaccessible save name/directory')
     plt.show()
 
     return None
