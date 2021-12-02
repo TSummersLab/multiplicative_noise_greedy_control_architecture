@@ -1,24 +1,42 @@
 import numpy as np
+
+import pickle
+
+import pandas as pd
+
 from copy import deepcopy as dc
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
+
+import dataframe_image as dfi
+
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, \
+    system_package, matrix_splitter
 
 import matplotlib
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.gridspec import GridSpec
+import matplotlib.transforms
 import matplotlib.patches as mpatches
-# from matplotlib.ticker import MaxNLocator
+import matplotlib.lines as mlines
+from matplotlib.ticker import MaxNLocator
 
-matplotlib.rcParams['axes.titlesize'] = 10
-matplotlib.rcParams['xtick.labelsize'] = 8
-matplotlib.rcParams['ytick.labelsize'] = 8
+matplotlib.rcParams['axes.titlesize'] = 12
+matplotlib.rcParams['xtick.labelsize'] = 12
+matplotlib.rcParams['ytick.labelsize'] = 12
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['legend.fontsize'] = 10
+matplotlib.rcParams['legend.title_fontsize'] = 10
+matplotlib.rcParams['legend.framealpha'] = 0.5
+matplotlib.rcParams['lines.markersize'] = 5
 # matplotlib.rcParams['image.cmap'] = 'Blues'
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['savefig.bbox'] = 'tight'
+matplotlib.rcParams['savefig.format'] = 'pdf'
 
 
-def initial_values_init(sys_in=None, T=200, P_max=(10**8), P_min=(10**(-8))):
+def initial_values_init(sys_in=None, T=200, P_max=(10 ** 8), P_min=(10 ** (-8))):
     return_values = {'T': T, 'P_max': P_max, 'P_min': P_min}
     if sys_in is None:
         return_values['X0'] = None
@@ -37,12 +55,14 @@ def initial_values_init(sys_in=None, T=200, P_max=(10**8), P_min=(10**(-8))):
 
         alpha_sim = np.zeros((T, len(sys['alphai'])))
         if np.sum(sys['alphai']) > 0:
-            alpha_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['alphai'])), cov=np.diag(sys['alphai']), size=T)
+            alpha_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['alphai'])),
+                                                                    cov=np.diag(sys['alphai']), size=T)
         return_values['alphai'] = alpha_sim
 
         beta_sim = np.zeros((T, len(sys['betaj'])))
         if np.sum(sys['betaj']) > 0:
-            beta_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['betaj'])), cov=np.diag(sys['betaj']), size=T)
+            beta_sim = np.random.default_rng().multivariate_normal(mean=np.zeros(len(sys['betaj'])),
+                                                                   cov=np.diag(sys['betaj']), size=T)
         return_values['betaj'] = beta_sim
 
     # T: max time steps of Riccati iterations
@@ -142,6 +162,7 @@ def cost_function_1(sys_in, initial_values=None):
 ################################################################
 
 def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
+    # Actuator selection for state-dependent multiplicative noise
     sys = dc(sys_in)
 
     if initial_values is None:
@@ -190,7 +211,7 @@ def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
 
             sys_test = dc(sys)
             sys_test['B'] = dc(B_test)
-            if np.sum(sys_test['betaj'])>0:
+            if np.sum(sys_test['betaj']) > 0:
                 for k in range(0, len(sys_test['betaj'])):
                     sys_test['Bj'][k] = B_test
             test_ret = cost_function_1(sys_test, initial_values)
@@ -213,7 +234,8 @@ def actuator_selection_cost_1(sys_in, nu_2=None, initial_values=None):
         for k in range(0, len(sys_return['betaj'])):
             sys_return['Bj'][k] = B
 
-    return_values = {'system': sys_return, 'cost_trend': cost_record, 'time_trend': time_record, 'check_trend': check_record}
+    return_values = {'system': sys_return, 'cost_trend': cost_record, 'time_trend': time_record,
+                     'check_trend': check_record}
     # sys: system with actuator selection
     # cost_trend: change in costs with selection of actuators
     # time_trend: change in time till convergence cost
@@ -230,8 +252,8 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
     gs1 = GridSpec(3, 1, figure=fig1)
 
     xrange = list(range(0, len(check)))
-    sc1 = np.nan*np.ones(len(check))
-    sc2 = np.nan*np.ones(len(check))
+    sc1 = np.nan * np.ones(len(check))
+    sc2 = np.nan * np.ones(len(check))
     t1 = np.nan * np.ones(len(check))
     t2 = np.nan * np.ones(len(check))
     for i in range(0, len(check)):
@@ -261,21 +283,21 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
             if B[j, i] == 0:
                 B[j, i] = np.nan
             else:
-                B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
+                B[j, i:np.shape(B)[1]] = (j + 1) * np.ones(np.shape(B)[1] - i)
     # B = np.pad(B, ((0,0),(1,0)), 'constant')
     print(B)
     for i in range(0, np.shape(B)[1]):
         if check[i] == 0:
-            ax3.scatter(i*np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0')
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0')
         else:
-            ax3.scatter(i*np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1')
+            ax3.scatter(i * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C1')
     ax3.invert_yaxis()
     ax3.set_xlabel(r'$|S|$')
     ax3.set_ylabel('Actuated Node')
 
     if fname is not None:
         fig1.suptitle(fname)
-        fname = 'images/'+fname+'_selection.pdf'
+        fname = 'images/' + fname + '_selection.pdf'
         plt.savefig(fname, format='pdf')
 
     plt.show()
@@ -286,7 +308,6 @@ def plot_actuator_selection_1(B_in, cost, time, check, fname=None):
 ################################################################
 
 def estimation_actuator_selection(sys_in, B_in=None, initial_values=None):
-
     sys = dc(sys_in)
 
     if not (B_in is None):
@@ -304,7 +325,8 @@ def estimation_actuator_selection(sys_in, B_in=None, initial_values=None):
         if system_check(sys_test)['check']:
             # print(i, '\n', sys_test['B'])
             test_ret = cost_function_1(sys_test, initial_values)
-            return_values[str(i)] = {'check': test_ret['P_check'], 'cost': test_ret['J_trend'][-1], 'time': test_ret['t']}
+            return_values[str(i)] = {'check': test_ret['P_check'], 'cost': test_ret['J_trend'][-1],
+                                     'time': test_ret['t']}
 
     # return dictionary: key is number of actuators
     return return_values
@@ -316,7 +338,7 @@ def plot_actuator_selection_2(values, fname=None):
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 1, figure=fig1)
 
-    n_vals = len(values)-2
+    n_vals = len(values) - 2
     B = dc(values['B'])
     x_range = list(range(0, n_vals))
     cost_check0 = np.nan * np.ones(n_vals)
@@ -357,7 +379,7 @@ def plot_actuator_selection_2(values, fname=None):
             if B[j, i] == 0:
                 B[j, i] = np.nan
             else:
-                B[j, i:np.shape(B)[1]] = (j+1)*np.ones(np.shape(B)[1]-i)
+                B[j, i:np.shape(B)[1]] = (j + 1) * np.ones(np.shape(B)[1] - i)
     # print(B)
     for i in range(0, np.shape(B)[1]):
         if values[str(i)]['check']:
@@ -372,7 +394,7 @@ def plot_actuator_selection_2(values, fname=None):
         fname = values['label']
 
     fig1.suptitle(fname)
-    fname = 'images/'+fname+'_selection.pdf'
+    fname = 'images/' + fname + '_selection.pdf'
     plt.savefig(fname, format='pdf')
     plt.show()
 
@@ -385,7 +407,7 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 1, figure=fig1)
 
-    n_vals = len(values1)-2
+    n_vals = len(values1) - 2
     B1 = dc(values1['B'])
     B2 = dc(values2['B'])
     x_range = list(range(0, n_vals))
@@ -441,11 +463,11 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
             if B1[j, i] == 0:
                 B1[j, i] = np.nan
             else:
-                B1[j, i:np.shape(B1)[1]] = (j+1)*np.ones(np.shape(B1)[1]-i)
+                B1[j, i:np.shape(B1)[1]] = (j + 1) * np.ones(np.shape(B1)[1] - i)
             if B2[j, i] == 0:
                 B2[j, i] = np.nan
             else:
-                B2[j, i:np.shape(B2)[1]] = (j+1)*np.ones(np.shape(B2)[1]-i)
+                B2[j, i:np.shape(B2)[1]] = (j + 1) * np.ones(np.shape(B2)[1] - i)
     # print(B)
     for i in range(0, np.shape(B1)[1]):
         if values1[str(i)]['check']:
@@ -464,7 +486,7 @@ def plot_actuator_selection_comparison_1(values1, values2, fname=None):
         fname = values1['label'] + ' vs ' + values2['label']
 
     fig1.suptitle(fname)
-    fname = 'images/'+fname+'_selection.pdf'
+    fname = 'images/' + fname + '_selection.pdf'
     plt.savefig(fname, format='pdf')
     plt.show()
 
@@ -499,10 +521,10 @@ def simulation_core(sys_in, feedback, initial_values=None):
     Q = sys['Q']
     R1 = sys['R1']
 
-    state_trajectory = np.nan * np.ones((T_sim+1, nx))
+    state_trajectory = np.nan * np.ones((T_sim + 1, nx))
     state_trajectory[0, :] = X0
 
-    cost_trajectory = np.nan * np.ones((T_sim+1))
+    cost_trajectory = np.nan * np.ones((T_sim + 1))
     cost_trajectory[0] = X0.T @ Q @ X0
 
     control_effort = np.nan * np.ones((T_sim + 1, nu))
@@ -526,7 +548,8 @@ def simulation_core(sys_in, feedback, initial_values=None):
         control_effort[t, :] = K @ state_trajectory[t, :]
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
-            print('====> Breaking current simulation at t= %s as cumulative cost magnitude exceed %.0e' %(t, initial_values['P_max']))
+            print('====> Breaking current simulation at t= %s as cumulative cost magnitude exceed %.0e' % (
+            t, initial_values['P_max']))
             break
 
     return_values = {'states': state_trajectory, 'costs': cost_trajectory, 'control': control_effort}
@@ -612,7 +635,8 @@ def simulation_actuator_selection(sys_model_in, sys_true_in, u_low=1, initial_va
         costs[str(i)] = test_return['costs']
         control[str(i)] = test_return['control']
 
-    return_values = {'label': sys_model['label'] + ' ' + sys_true['label'], 'states': states, 'costs': costs, 'control': control}
+    return_values = {'label': sys_model['label'] + ' ' + sys_true['label'], 'states': states, 'costs': costs,
+                     'control': control}
     # states: dictionary of state trajectories for each actuator size
     # costs: dictionary of cost trends for each actuator size
     # control: dictionary of control effort for each actuator size
@@ -622,6 +646,7 @@ def simulation_actuator_selection(sys_model_in, sys_true_in, u_low=1, initial_va
 ################################################################
 
 def simulation_model_comparison(sys_modelA_in, sys_modelB_in, sys_true_in, initial_values=None):
+    print('Simulation start: Comparison of actuator selection of A vs B on C')
     sys_true = dc(sys_true_in)
     sys_modelA = dc(sys_modelA_in)
     sys_modelB = dc(sys_modelB_in)
@@ -641,6 +666,7 @@ def simulation_model_comparison(sys_modelA_in, sys_modelB_in, sys_true_in, initi
     return_values = {'T_A': ret_A, 'T_B': ret_B, 'system_A': sys_modelA, 'system_B': sys_modelB, 'system_C': sys_true}
     # T_A, T_B: state, input and cost trajectories of simulations of true system using A and B respectively
     # system_A, system_B: systems with optimal selection of actuator sets
+    print('Simulation end: Comparison of actuator selection of A vs B on C')
     return return_values
 
 
@@ -670,7 +696,6 @@ def simulation_model_comparison(sys_modelA_in, sys_modelB_in, sys_true_in, initi
 ################################################################
 
 def plot_simulation(display_data=None, T=None, fname=None):
-
     if display_data is None:
         print('No data provided')
         return None
@@ -696,7 +721,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'states' in display_data:
         ax1 = fig1.add_subplot(gs1[0, 0])
         for i in display_data['states']:
-            ax1.plot(T_range, display_data['states'][i], color='C'+i, alpha=0.5, label=i)
+            ax1.plot(T_range, display_data['states'][i], color='C' + i, alpha=0.5, label=i)
         # ax1.set_yscale('log')
         ax1.set_xlabel(r'$t$')
         ax1.set_ylabel(r'$x_t$')
@@ -704,7 +729,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'costs' in display_data:
         ax2 = fig1.add_subplot(gs1[1, 0])
         for i in display_data['costs']:
-            ax2.plot(T_range, display_data['costs'][i], color='C'+i, alpha=0.5, label=i)
+            ax2.plot(T_range, display_data['costs'][i], color='C' + i, alpha=0.5, label=i)
         ax2.set_xlabel(r'$t$')
         ax2.set_ylabel(r'$J^*$')
         ax2.set_yscale('log')
@@ -713,7 +738,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
     if 'control' in display_data:
         ax3 = fig1.add_subplot(gs1[2, 0])
         for i in display_data['control']:
-            ax3.plot(T_range, display_data['control'][i], color='C'+i, alpha=0.5, label=i)
+            ax3.plot(T_range, display_data['control'][i], color='C' + i, alpha=0.5, label=i)
         ax3.set_xlabel(r'$t$')
         ax3.set_ylabel(r'$u_t$')
 
@@ -730,8 +755,7 @@ def plot_simulation(display_data=None, T=None, fname=None):
 
 ################################################################
 
-def plot_simulation_comparison1(values, fname=None):
-
+def plot_simulation_comparison1(values):
     valuesA = dc(values['T_A'])
     valuesB = dc(values['T_B'])
 
@@ -747,7 +771,8 @@ def plot_simulation_comparison1(values, fname=None):
         # ax1.plot(T_range, valuesB['states'][key], marker='x', alpha=0.5, color='C'+key)
         ax1.plot(T_range, valuesA['states'][key], linewidth=1, alpha=0.5, color='C' + key)
         ax1.plot(T_range, valuesB['states'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
-    ax1.set_xlabel(r'$t$')
+    # ax1.set_xlabel(r'$t$')
+    ax1.xaxis.set_tick_params(labelbottom=False)
     ax1.set_ylabel(r'$x_t$')
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
@@ -756,21 +781,30 @@ def plot_simulation_comparison1(values, fname=None):
         # ax2.plot(T_range, valuesB['control'][key], marker='x', alpha=0.5, color='C'+key)
         ax2.plot(T_range, valuesA['control'][key], linewidth=1, alpha=0.5, color='C' + key)
         ax2.plot(T_range, valuesB['control'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key)
-    ax2.set_xlabel(r'$t$')
+    # ax2.set_xlabel(r'$t$')
+    ax2.xaxis.set_tick_params(labelbottom=False)
     ax2.set_ylabel(r'$u_t$')
 
     ax3 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
     for key in valuesA['costs']:
         # ax3.plot(T_range, valuesA['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
         # ax3.plot(T_range, valuesB['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
-        ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='A:'+key)
-        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='B:'+key)
+        ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='A:' + key)
+        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='B:' + key)
         # ax3.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax3.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
     ax3.set_xlabel(r'$t$')
     ax3.set_ylabel(r'$J_t$')
     ax3.set_yscale('log')
-    ax3.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
+    ax3.legend(ncol=5, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'Model:$|S|$')
+
+    try:
+        fname = 'images/' + values['file_name'] + '_comparison1.pdf'
+        plt.savefig(fname, format='pdf')
+        print('Plot saved as %s' % fname)
+    except:
+        print('Plot not saved')
+
     plt.show()
 
     return None
@@ -778,7 +812,7 @@ def plot_simulation_comparison1(values, fname=None):
 
 ################################################################
 
-def plot_simulation_comparison2(values, fname=None):
+def plot_simulation_comparison2(values):
     valuesA = dc(values['T_A'])
     valuesB = dc(values['T_B'])
 
@@ -796,16 +830,24 @@ def plot_simulation_comparison2(values, fname=None):
         # ax1.plot(T_range, valuesB['costs'][key], marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
-    ax1.set_xlabel(r'$t$')
+    # ax1.set_xlabel(r'$t$')
     ax1.set_ylabel(r'$J_t$')
     ax1.set_yscale('log')
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     for key in valuesA['costs']:
-        ax2.plot(T_range, valuesA['costs'][key]-valuesB['costs'][key], alpha=0.5, color='C'+key, label=key)
+        ax2.plot(T_range, valuesA['costs'][key] - valuesB['costs'][key], alpha=0.5, color='C' + key, label=key)
     ax2.set_xlabel(r'$t$')
     ax2.set_ylabel(r'$J_t$ (A - B)')
-    ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+    ax2.set_yscale('log')
+    ax2.legend(ncol=5, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+
+    try:
+        fname = 'images/' + values['file_name'] + '_comparison2.pdf'
+        plt.savefig(fname, format='pdf')
+        print('Plot saved as %s' % fname)
+    except:
+        print('Plot not saved')
 
     plt.show()
 
@@ -895,9 +937,13 @@ def plot_simulation_comparison2(values, fname=None):
 # 
 # ################################################################
 
-def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
-    SA = dc(sysA_in)
-    SB = dc(sys2_in)
+
+def actuator_comparison(values, disptext=True, figplt=True):
+    SA = dc(values['system_A'])
+    SB = dc(values['system_B'])
+    # def actuator_comparison(sysA_in, sysB_in, disptext=True, figplt=True):
+    #     SA = dc(sysA_in)
+    #     SB = dc(sysB_in)
 
     return_value = {}
 
@@ -916,14 +962,13 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
                         B[j, i] = np.nan
                     else:
                         B[j, i:np.shape(B)[1]] = (j + 1) * np.ones(np.shape(B)[1] - i)
-                ax1.scatter((i+1) * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0', s=100)
+                ax1.scatter((i + 1) * np.ones(np.shape(B)[0]), B[:, i], marker='o', color='C0', s=100)
             # ax1.set_ylim(bottom=1-0.5, top=np.shape(B)[0]+0.5)
             # ax1.set_xlim(left=1-0.5, right=np.shape(B)[1]+0.5)
             ax1.invert_yaxis()
             ax1.set_xlabel(r'$|S|$')
             ax1.set_ylabel('Node number')
             ax1.set_title('Actuator Set comparison')
-            plt.show()
         else:
             if disptext:
                 print(SA['label'], ' B = ', SB['label'], ' B:\n', SB['B'])
@@ -948,161 +993,261 @@ def actuator_comparison(sysA_in, sys2_in, disptext=True, figplt=True):
                         B2[j, i] = np.nan
                     else:
                         B2[j, i:np.shape(B2)[1]] = (j + 1) * np.ones(np.shape(B2)[1] - i)
-                ax1.scatter((i+1) * np.ones(np.shape(B1)[0]), B1[:, i], marker='1', color='C0', s=100)
-                ax1.scatter((i+1) * np.ones(np.shape(B2)[0]), B2[:, i], marker='2', color='C1', s=100)
+                ax1.scatter((i + 1) * np.ones(np.shape(B1)[0]), B1[:, i], marker='1', color='C0', s=100)
+                ax1.scatter((i + 1) * np.ones(np.shape(B2)[0]), B2[:, i], marker='2', color='C1', s=100)
             # ax1.set_ylim(bottom=1-0.5, top=np.shape(B1)[0]+0.5)
             # ax1.set_xlim(left=1-0.5, right=np.shape(B1)[1]+0.5)
             ax1.invert_yaxis()
             ax1.set_xlabel(r'$|S|$')
             ax1.set_ylabel('Node number')
             ax1.set_title('Actuator Set comparison')
-            ax1.legend([SA['label'], SB['label']], framealpha=0.5)
-            plt.show()
+            ax1.legend(['A', 'B'])
         else:
             if disptext:
-                print(SA['label'], ' B:\n', SA['B'])
-                print(SB['label'], ' B:\n', SB['B'])
+                print('System A', ' B:\n', SA['B'])
+                print('System B', ' B:\n', SB['B'])
                 print('B diff (%s - %s):' % (SA['label'], SB['label']))
                 print(SA['B'] - SB['B'])
 
-
     # print(SA['label'], ' B:\n', SA['B'])
     # print(SB['label'], ' B:\n', SB['B'])
+    if figplt:
+        try:
+            fname = 'images/' + values['file_name'] + '_actcomparison.pdf'
+            plt.savefig(fname, format='pdf')
+            print('Plot saved as %s' % fname)
+            plt.show()
+        except:
+            print('Plot not saved')
 
     return return_value
 
 
 ################################################################
 
-def random_graph_emperical_simulation(sys_model, edge_probability, number_of_iterations=50):
+def random_graph_empirical_simulation(sys_model, network_parameter, network_type, number_of_iterations=50,
+                                      save_check=True):
+    if network_type != 'ER' and network_type != 'BA':
+        print('ERROR: Check network model')
+        return None
+
+    print('\nSimulation start: Empirical study of random graphs\n')
+    print('Model: ' + network_type + '\n')
 
     nx = np.shape(sys_model['A'])[0]
-    rho = np.max(np.abs(np.linalg.eigvals(sys_model['A'])))
+    rho = round(np.max(np.abs(np.linalg.eigvals(sys_model['A']))), 1)
     alphai = dc(sys_model['alphai'])
     X0 = dc(sys_model['X0'])
 
     N_test = number_of_iterations
 
-    cost_record_nom = np.nan * np.zeros((N_test, nx))
-    check_record_nom = np.zeros(nx)
-    cost_record_mpl = np.nan * np.zeros((N_test, nx))
-    check_record_mpl = np.zeros(nx)
+    cost_record_A = np.nan * np.zeros((N_test, nx))
+    cost_record_B = np.nan * np.zeros((N_test, nx))
 
     for iter in range(0, N_test):
 
-        print("Realization: %s / %s" % (iter + 1, N_test), end='\r')
+        print("Realization: %s / %s" % (iter + 1, N_test))
 
-        ER1 = create_graph(nx, type='ER', p=edge_probability)
-        ER2 = create_graph(nx, type='ER', p=edge_probability)
-        ER3 = create_graph(nx, type='ER', p=edge_probability)
+        if network_type == 'ER':
+            RG1 = create_graph(nx, type='ER', p=network_parameter)
+            RG2 = create_graph(nx, type='ER', p=network_parameter)
+            RG3 = create_graph(nx, type='ER', p=network_parameter)
+        elif network_type == 'BA':
+            RG1 = create_graph(nx, type='BA', p=network_parameter)
+            RG2 = create_graph(nx, type='BA', p=network_parameter)
+            RG3 = create_graph(nx, type='BA', p=network_parameter)
+        else:
+            print('ERROR: Specify network model')
+            return None
 
-        Ai_MPL = matrix_splitter(np.abs(ER3['Adj']-ER1['Adj']))
-        alphai_MPL = alphai*np.ones(np.shape(Ai_MPL)[0])
+        S_A = system_package(A_in=rho * RG1['A'], X0_in=X0, label_in='System A', print_check=False)
+        if not system_check(S_A)['check']:
+            print('System A Error')
 
-        S_MPL = system_package(A_in=rho*ER1['A'], alphai_in=alphai_MPL, Ai_in=Ai_MPL, X0_in=X0, label_in='System MPL',
-                               print_check=False)
-        if not system_check(S_MPL)['check']:
-            print('MPL System Error')
+        Ai_B = matrix_splitter(np.abs(RG3['Adj'] - RG1['Adj']))
+        alphai_B = alphai * np.ones(np.shape(Ai_B)[0])
+        S_B = system_package(A_in=rho * RG1['A'], alphai_in=alphai_B, Ai_in=Ai_B, X0_in=X0, label_in='System B',
+                             print_check=False)
+        if not system_check(S_B)['check']:
+            print('System B Error')
 
-        S_Nom = system_package(A_in=rho*ER1['A'], X0_in=X0, label_in='System Nominal', print_check=False)
-        if not system_check(S_Nom)['check']:
-            print('Nominal System Error')
-
-        S_True = system_package(A_in=rho*ER3['A'], X0_in=X0, alphai_in=alphai, Ai_in=ER2['Adj'], label_in='System True', print_check=False)
-        if not system_check(S_True)['check']:
+        S_C = system_package(A_in=rho * RG3['A'], X0_in=X0, alphai_in=alphai, Ai_in=RG2['Adj'], label_in='System C',
+                             print_check=False)
+        if not system_check(S_C)['check']:
             print('True System Error')
 
-        ret_sim = simulation_model_comparison(S_Nom, S_MPL, S_True)
-
-        # print(ret_sim)
+        ret_sim = simulation_model_comparison(S_A, S_B, S_C)
 
         for i in ret_sim['T_A']['costs']:
-            cost_record_nom[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
+            cost_record_A[iter, int(i) - 1] = ret_sim['T_A']['costs'][i][-1]
         for i in ret_sim['T_B']['costs']:
-            cost_record_mpl[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
+            cost_record_B[iter, int(i) - 1] = ret_sim['T_B']['costs'][i][-1]
 
-    return_values = {'Nom_costs': cost_record_nom, 'MPL_costs': cost_record_mpl}
+    return_values = {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter,
+                     'nx': nx, 'network_type': network_type, 'N_test': N_test, 'rho': rho, 'alphai': alphai}
+    print('\nSimulation end: Empirical study of random graphs\n')
+
+    if save_check:
+        try:
+            fname = 'system_test/MPL_' + str(return_values['N_test']) + '_' + return_values['network_type'] + '_' + str(
+                return_values['network_parameter']) + '_' + str(return_values['nx']) + '_' + str(
+                return_values['rho']) + '_' + str(return_values['alphai'][0]) + '.pickle'
+            f_open = open(fname, 'wb')
+            pickle.dump(return_values, f_open)
+            f_open.close()
+            print('System saved to file @', fname, '\n')
+        except:
+            print('Save failed')
+
     return return_values
 
 
 ################################################################
 
+def random_graph_empirical_simulation_read(sys_model, network_parameter, network_type, number_of_iterations=50):
+    N_test = number_of_iterations
+    nx = np.shape(sys_model['A'])[0]
+    rho = round(np.max(np.linalg.eigvals(sys_model['A'])), 1)
+    alphai = sys_model['alphai']
+    fname = 'system_test/MPL_' + str(N_test) + '_' + network_type + '_' + str(network_parameter) + '_' + str(
+        nx) + '_' + str(rho) + '_' + str(alphai[0]) + '.pickle'
+
+    try:
+        f_open = open(fname, 'rb')
+    except:
+        print('ERROR: File @', fname, ' does not exist or not readable')
+        return None
+
+    return_values = pickle.load(f_open)
+    f_open.close()
+    print('System read from file @', fname, '\n')
+    return return_values
+
+
+################################################################
+
+def random_graph_empirical_simulation_comparison(N_test, Network_type, Network_parameter, nx, alphai, rho):
+    simulation_values = {}
+    parameter_list = {}
+
+    if type(Network_parameter) is list:
+        parameter_list['p_list'] = Network_parameter
+        parameter_list['p_type'] = 'p'
+        for i in range(0, len(Network_parameter)):
+            S_base_model = system_package(A_in=rho * create_graph(nx)['A'], alphai_in=alphai,
+                                          Ai_in=create_graph(nx)['A'], label_in='System Model', print_check=False)
+            simulation_values[i] = random_graph_empirical_simulation_read(S_base_model, Network_parameter[i],
+                                                                          Network_type, N_test)
+    elif type(nx) is list:
+        parameter_list['p_list'] = nx
+        parameter_list['p_type'] = 'nx'
+        for i in range(0, len(nx)):
+            S_base_model = system_package(A_in=rho * create_graph(nx[i])['A'], alphai_in=alphai,
+                                          Ai_in=create_graph(nx[i])['A'], label_in='System Model', print_check=False)
+            simulation_values[i] = random_graph_empirical_simulation_read(S_base_model, Network_parameter, Network_type,
+                                                                          N_test)
+    else:
+        print('ERROR: Check comparison list')
+        return None
+
+    return simulation_values, parameter_list
+
+
+################################################################
+
 def plot_random_graph_simulation(plt_data):
-
-    # fig1 = plt.figure(constrained_layout=True)
-    # gs1 = GridSpec(2, 1, figure=fig1)
-    # ax1 = fig1.add_subplot(gs1[0, 0])
-    # ax1.violinplot(plt_data['Nom_costs'].T, showmeans=True)
-    # ax2 = fig1.add_subplot(gs1[1, 0])
-    # ax2.violinplot(plt_data['MPL_costs'].T, showmeans=True)
-
     Nom_values = []
     MPL_values = []
 
-    Nom_check = []
-    MPL_check = []
+    Nom_check_fail = []
+    MPL_check_fail = []
 
-    Nom_pos = [] # list(range(1, 1 + np.shape(plt_data['Nom_costs'])[1]))
-    MPL_pos = [] # list(range(1, 1 + np.shape(plt_data['MPL_costs'])[1]))
+    Nom_check_pass = []
+    MPL_check_pass = []
 
-    for i in range(0, np.shape(plt_data['Nom_costs'])[1]):
-        Nom_values.append([j for j in plt_data['Nom_costs'][:, i] if not np.isnan(j)])
-        Nom_check.append(np.sum(np.isnan(plt_data['Nom_costs'][:, i])))
+    Nom_mean = []
+    MPL_mean = []
+
+    Nom_pos = []  # list(range(1, 1 + np.shape(plt_data['A_costs'])[1]))
+    MPL_pos = []  # list(range(1, 1 + np.shape(plt_data['B_costs'])[1]))
+
+    x_range = list(range(1, 1 + plt_data['nx'], 2))
+
+    for i in range(0, plt_data['nx']):
+        Nom_values.append([j for j in plt_data['A_costs'][:, i] if not np.isnan(j)])
+        Nom_check_fail.append(np.sum(np.isnan(plt_data['A_costs'][:, i])))
         if len(Nom_values[-1]) > 0:
-            Nom_pos.append(i+1)
+            Nom_pos.append(i + 1)
         else:
             del Nom_values[-1]
 
-    for i in range(0, np.shape(plt_data['MPL_costs'])[1]):
-        MPL_values.append([j for j in plt_data['MPL_costs'][:, i] if not np.isnan(j)])
-        MPL_check.append(np.sum(np.isnan(plt_data['MPL_costs'][:, i])))
+    for i in range(0, plt_data['nx']):
+        MPL_values.append([j for j in plt_data['B_costs'][:, i] if not np.isnan(j)])
+        MPL_check_fail.append(np.sum(np.isnan(plt_data['B_costs'][:, i])))
         if len(MPL_values[-1]) > 0:
-            MPL_pos.append(i+1)
+            MPL_pos.append(i + 1)
         else:
             del MPL_values[-1]
 
-    for i in range(0, len(Nom_check)):
-        if Nom_check[i] == 0:
-            Nom_check[i] = np.nan
-    for i in range(0, len(MPL_check)):
-        if MPL_check[i] == 0:
-            MPL_check[i] = np.nan
-        # temp = plt_data['MPL_costs'][:, i]
-        # temp = [j for j in temp if not np.isnan(j)]
-        # MPL_values.append(temp)
-    # print(Nom_values)
-    # print(len(Nom_values))
-    # print(Nom_values)
-    # print(Nom_pos)
+    for i in range(0, len(Nom_check_fail)):
+        Nom_check_pass.append(plt_data['N_test'] - Nom_check_fail[i])
+        # if Nom_check_fail[i] == 0:
+        #     Nom_check_fail[i] = np.nan
+    for i in range(0, len(MPL_check_fail)):
+        MPL_check_pass.append(plt_data['N_test'] - MPL_check_fail[i])
+        # if MPL_check_fail[i] == 0:
+        #     MPL_check_fail[i] = np.nan
 
     fig1 = plt.figure(constrained_layout=True)
     gs1 = GridSpec(3, 1, figure=fig1)
     ax1 = fig1.add_subplot(gs1[0:2, 0])
-    # for i in range(0, np.shape(plt_data['Nom_costs'])[0]):
-    #     ax1.violinplot(plt_data['Nom_costs'][i, ~np.isnan(plt_data['Nom_costs'][i])], i+1, showmeans=True)
-    # for i in range(0, np.shape(plt_data['MPL_costs'])[0]):
-    #     ax1.violinplot(plt_data['MPL_costs'][i, ~np.isnan(plt_data['MPL_costs'][i])], i+1, showmeans=True)
+    # for i in range(0, np.shape(plt_data['A_costs'])[0]):
+    #     ax1.violinplot(plt_data['A_costs'][i, ~np.isnan(plt_data['A_costs'][i])], i+1, showmeans=True)
+    # for i in range(0, np.shape(plt_data['B_costs'])[0]):
+    #     ax1.violinplot(plt_data['B_costs'][i, ~np.isnan(plt_data['B_costs'][i])], i+1, showmeans=True)
     ax1.violinplot(Nom_values, Nom_pos, showmeans=True)
     ax1.violinplot(MPL_values, MPL_pos, showmeans=True)
+    ax1.set_xticks(x_range)
 
     mean_nom = [np.mean(i) for i in Nom_values]
     mean_mpl = [np.mean(i) for i in MPL_values]
 
-    ax1.plot(range(1, len(mean_nom) + 1), mean_nom, color='C0', label='Nominal')
-    ax1.plot(range(1, len(mean_mpl) + 1), mean_mpl, color='C3', label='MPL')
+    ax1.plot(Nom_pos, mean_nom, color='C0', label='A')
+    ax1.plot(MPL_pos, mean_mpl, color='C3', label='B')
     ax1.set_yscale('log')
     ax1.set_ylabel('Cost')
     ax1.legend()
 
-    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
-    ax2.scatter(range(1, 1+len(Nom_check)), Nom_check, alpha=0.5, color='C0', label='Nominal')
-    ax2.scatter(range(1, 1+len(MPL_check)), MPL_check, alpha=0.5, color='C3', label='MPL')
-    ax2.legend()
-    ax2.set_xlabel(r'$|S|$')
-    ax2.set_ylabel('Control Fail of ')
+    adjust = 0.1
+    xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
+    xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
+    y_tick_vals = range(0, plt_data['N_test'] + 1, 20)
 
-    fname = 'images/MPL_on_ER.pdf'
-    plt.savefig(fname, format='pdf')
+    ax2 = fig1.add_subplot(gs1[2, 0], sharex=ax1)
+    ax2.bar(xA_pos, Nom_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5,
+            alpha=0.7)
+    ax2.bar(xA_pos, Nom_check_fail, width=2 * adjust, bottom=Nom_check_pass, color='C1', label='A Fail', edgecolor='k',
+            linewidth=0.5, alpha=0.7)
+    ax2.bar(xB_pos, MPL_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5,
+            alpha=0.7)
+    ax2.bar(xB_pos, MPL_check_fail, width=2 * adjust, bottom=MPL_check_pass, color='C3', label='B Fail', edgecolor='k',
+            linewidth=0.5, alpha=0.7)
+
+    # ax2.scatter(range(1, 1+len(Nom_check_fail)), Nom_check_fail, alpha=0.5, color='C0', label='A')
+    # ax2.scatter(range(1, 1+len(MPL_check_fail)), MPL_check_fail, alpha=0.5, color='C3', label='B')
+    ax2.legend(ncol=2, loc='lower right')
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Check for\n' + str(np.shape(plt_data['B_costs'])[0]) + ' models')
+    ax2.set_xticks(x_range)
+    ax2.set_yticks(y_tick_vals)
+
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(
+        plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_' + str(plt_data['rho']) + '_Comp1.pdf'
+    try:
+        plt.savefig(fname, format='pdf')
+        print('File saved as: %s' % (fname))
+    except:
+        print('Save failed')
     plt.show()
 
     return None
@@ -1110,10 +1255,295 @@ def plot_random_graph_simulation(plt_data):
 
 ################################################################
 
-def cost_comparison_print(data):
-    print('True system (%s) simulation cost with A (%s) and B (%s) feedback' % (data['system_C']['label'], data['system_A']['label'], data['system_B']['label']))
-    for key in data['T_A']['costs']:
-        print("|S|: %s | A: %.4e | B: %.4e | Diff (A-B) %.4e (%.2f %% of A)" % (key, data['T_A']['costs'][key][-1], data['T_B']['costs'][key][-1], data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1], (data['T_A']['costs'][key][-1] - data['T_B']['costs'][key][-1]) * 100 / data['T_A']['costs'][key][-1]))
+def plot_random_graph_simulation2(plt_data):
+    A_costs = dc(plt_data['A_costs'])
+    B_costs = dc(plt_data['B_costs'])
+
+    A_costs = np.where(np.isnan(A_costs), np.inf, A_costs)
+    B_costs = np.where(np.isnan(B_costs), np.inf, B_costs)
+
+    A_values = []
+    B_values = []
+
+    A_check_fail = []
+    B_check_fail = []
+
+    A_check_pass = []
+    B_check_pass = []
+
+    A_mean = []
+    B_mean = []
+
+    A_median = []
+    B_median = []
+
+    A_pos = []
+    B_pos = []
+
+    # Use np.where to swap nan with inf - check for mean and median calculations that way
+
+    x_range = list(range(1, 1 + plt_data['nx'], 2))
+
+    for i in range(0, plt_data['nx']):
+
+        A_values.append([j for j in A_costs[:, i] if not np.isinf(j)])
+        A_check_fail.append(np.sum(np.isinf(A_costs[:, i])))
+        A_check_pass.append(plt_data['N_test'] - A_check_fail[-1])
+        A_mean.append(np.mean(A_costs[:, i]))
+        A_median.append(np.median(A_costs[:, i]))
+        if len(A_values[-1]) == 0:
+            del A_values[-1]
+        else:
+            A_pos.append(i + 1)
+
+        B_values.append([j for j in B_costs[:, i] if not np.isinf(j)])
+        B_check_fail.append(np.sum(np.isinf(B_costs[:, i])))
+        B_check_pass.append(plt_data['N_test'] - B_check_fail[-1])
+        B_mean.append(np.mean(B_costs[:, i]))
+        B_median.append(np.median(B_costs[:, i]))
+        if len(B_values[-1]) == 0:
+            del B_values[-1]
+        else:
+            B_pos.append(i + 1)
+
+    A_check_pass = [a / plt_data['N_test'] for a in A_check_pass]
+    # A_check_fail = [a / plt_data['N_test'] for a in A_check_fail]
+
+    B_check_pass = [a / plt_data['N_test'] for a in B_check_pass]
+    # B_check_fail = [a / plt_data['N_test'] for a in B_check_fail]
+
+    x_val = range(1, 1 + plt_data['nx'])
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(2, 1, figure=fig1)
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+
+    ax1.plot(x_val, A_mean, color='C0', marker='o', alpha=0.7, label='mean(A)')
+    ax1.plot(x_val, B_mean, color='C3', marker='o', alpha=0.7, label='mean(B)')
+
+    ax1.plot(x_val, A_median, color='C0', marker='o', alpha=0.7, label='median(A)', linestyle='dashed')
+    ax1.plot(x_val, B_median, color='C3', marker='o', alpha=0.7, label='median(B)', linestyle='dashed')
+
+    ax1.set_xticks(x_range)
+    ax1.xaxis.set_tick_params(labelbottom=False)
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
+    ax1.grid(visible=True, which='both', axis='x', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax1.legend(ncol=2, loc='best')
+    # ax2.legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+
+    # adjust = 0.1
+    # xA_pos = np.linspace(1 - adjust, plt_data['nx'] - adjust, plt_data['nx'])
+    # xB_pos = np.linspace(1 + adjust, plt_data['nx'] + adjust, plt_data['nx'])
+    y_tick_vals = [0, 0.5, 1]
+
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+    # ax2.bar(xA_pos, A_check_pass, width=2 * adjust, color='C0', label='A Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xA_pos, A_check_fail, width=2 * adjust, bottom=A_check_pass, color='C1', label='A Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xB_pos, B_check_pass, width=2 * adjust, color='C2', label='B Pass', edgecolor='k', linewidth=0.5, alpha=0.7)
+    # ax2.bar(xB_pos, B_check_fail, width=2 * adjust, bottom=B_check_pass, color='C3', label='B Fail', edgecolor='k', linewidth=0.5, alpha=0.7)
+
+    ax2.plot(x_val, A_check_pass, color='C0', marker='o', label='A', alpha=0.7)
+    ax2.plot(x_val, B_check_pass, color='C3', marker='o', label='B', alpha=0.7)
+
+    ax2.legend(ncol=2, loc='lower right')
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Pass Fraction \n(' + str(plt_data['N_test']) + ' Realizations)')
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=5, min_n_ticks=4, integer=True))
+    ax2.set_ylim(-0.1, 1.1)
+    ax2.grid(color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.set_yticks(y_tick_vals)
+
+    fname = 'images/MPL_' + str(plt_data['N_test']) + '_' + plt_data['network_type'] + '_' + str(
+        plt_data['network_parameter']) + '_' + str(plt_data['nx']) + '_' + str(plt_data['rho']) + '_Comp2.pdf'
+    try:
+        plt.savefig(fname, format='pdf')
+        print('File saved as: %s' % (fname))
+    except:
+        print('Save failed')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def plot_random_graph_simulation3(plt_data, parameter_list):
+    # plt_data - dictionary indexed by test parameter of dictionary of test values
+    # Test values: {'A_costs': cost_record_A, 'B_costs': cost_record_B, 'network_parameter': network_parameter, 'nx': nx, 'network_type': network_type, 'N_test': N_test, 'rho': rho, 'alphai': alphai}
+
+    check_values = ['N_test', 'network_type']
+
+    for key1 in plt_data:
+        for key2 in plt_data:
+            for key3 in check_values:
+                if plt_data[key1][key3] != plt_data[key2][key3]:
+                    print('ERROR: Data check fails: ', str(plt_data[key1][key3]), ' vs ', str(plt_data[key2][key3]))
+                    return None
+
+    fig1 = plt.figure(constrained_layout=True)
+    gs1 = GridSpec(2, 1, figure=fig1)
+
+    ax1 = fig1.add_subplot(gs1[0, 0])
+    ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
+
+    plot_alpha = [0.8, 0.3, 0.3]
+    plot_marker = ['o', 'v', 's']
+    plot_line_size = [2, 1, 1]
+
+    y_tick_vals = [0, 0.5, 1]
+    nx = [1]
+
+    count = 0
+
+    for p in plt_data:
+
+        if plt_data[p]['nx'] not in nx:
+            nx.append(plt_data[p]['nx'])
+
+        A_costs = dc(plt_data[p]['A_costs'])
+        B_costs = dc(plt_data[p]['B_costs'])
+
+        A_costs = np.where(np.isnan(A_costs), np.inf, A_costs)
+        B_costs = np.where(np.isnan(B_costs), np.inf, B_costs)
+
+        A_values = []
+        B_values = []
+
+        A_check_pass = []
+        B_check_pass = []
+
+        A_mean = []
+        B_mean = []
+
+        A_median = []
+        B_median = []
+
+        for i in range(0, plt_data[p]['nx']):
+            A_values.append([j for j in A_costs[:, i] if not np.isinf(j)])
+            A_check_pass.append((plt_data[p]['N_test'] - np.sum(np.isinf(A_costs[:, i]))) / plt_data[p]['N_test'])
+            A_mean.append(np.mean(A_costs[:, i]))
+            A_median.append(np.median(A_costs[:, i]))
+
+            B_values.append([j for j in B_costs[:, i] if not np.isinf(j)])
+            B_check_pass.append((plt_data[p]['N_test'] - np.sum(np.isinf(B_costs[:, i]))) / plt_data[p]['N_test'])
+            B_mean.append(np.mean(B_costs[:, i]))
+            B_median.append(np.median(B_costs[:, i]))
+
+        x_val = range(1, 1 + plt_data[p]['nx'])
+
+        ax1.plot(x_val, A_mean, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count],
+                 alpha=plot_alpha[count], label='mean(A)')
+        ax1.plot(x_val, B_mean, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count],
+                 alpha=plot_alpha[count], label='mean(B)')
+
+        ax1.plot(x_val, A_median, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count],
+                 alpha=plot_alpha[count], label='median(A)', linestyle='dashed')
+        ax1.plot(x_val, B_median, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count],
+                 alpha=plot_alpha[count], label='median(B)', linestyle='dashed')
+
+        ax2.plot(x_val, A_check_pass, color='C0', marker=plot_marker[count], linewidth=plot_line_size[count], label='A',
+                 alpha=plot_alpha[count])
+        ax2.plot(x_val, B_check_pass, color='C3', marker=plot_marker[count], linewidth=plot_line_size[count], label='B',
+                 alpha=plot_alpha[count])
+
+        count += 1
+
+    ax1.xaxis.set_tick_params(labelbottom=False)
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Cost')
+    ax1.grid(visible=True, which='both', axis='x', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.set_xlabel(r'$|S|$')
+    ax2.set_ylabel('Control Pass Fraction \n(' + str(plt_data[0]['N_test']) + ' Realizations)')
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=5, min_n_ticks=5, integer=True))
+    ax2.set_xlim(0.5, max(nx) + 0.5)
+    ax2.set_xticks(nx)
+    ax2.set_ylim(-0.1, 1.1)
+    ax2.set_yticks(y_tick_vals)
+    ax2.grid(color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+    ax2.grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+
+    handle_list1 = [mlines.Line2D([], [], color='C2', linestyle='solid', label='Mean'),
+                    mlines.Line2D([], [], color='C2', linestyle='dashed', label='Median')]
+    ax1.legend(handles=handle_list1, loc='upper left')
+
+    handle_list2 = []
+    for i in range(0, len(parameter_list['p_list'])):
+        handle_list2.append(mlines.Line2D([], [], color='C2', marker=plot_marker[i], markersize=10,
+                                          label=parameter_list['p_type'] + '=' + str(parameter_list['p_list'][i])))
+    handle_list2.append(mpatches.Patch(color='C0', label='A'))
+    handle_list2.append(mpatches.Patch(color='C3', label='B'))
+    ax2.legend(handles=handle_list2, loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2)
+
+    fname = 'images/MPL_' + str(plt_data[0]['N_test']) + '_' + plt_data[0]['network_type'] + '_' + str(
+        plt_data[0]['rho']) + '_' + parameter_list['p_type'] + '_'
+    for i in range(0, len(parameter_list['p_list'])):
+        fname += str(parameter_list['p_list'][i])
+        if i + 1 < len(parameter_list['p_list']):
+            fname += 'vs'
+    fname += 'Comp.pdf'
+
+    try:
+        plt.savefig(fname, format='pdf')
+        print('File saved as: %s' % (fname))
+    except:
+        print('Save failed')
+    plt.show()
+
+    return None
+
+
+################################################################
+
+def cost_comparison_print(values):
+    data_cols = [r"$|S|$", r"$A$", r"$B$", r"$A-B$", r"$\frac{A-B}{A} \times 100$"]
+    # data_rows = []
+
+    # for key in values['T_A']['costs']:
+    #     data_rows.append(r'$|S|=$ ' + key)
+    cost_data = np.zeros((len(values['T_A']['costs']), len(data_cols)))
+
+    for i in range(0, len(values['T_A']['costs'])):
+        cost_data[i, 0] = i+1
+        cost_data[i, 1] = values['T_A']['costs'][str(i + 1)][-1]
+        cost_data[i, 2] = values['T_B']['costs'][str(i + 1)][-1]
+        cost_data[i, 3] = cost_data[i, 1] - cost_data[i, 2]
+        cost_data[i, 4] = cost_data[i, 3] * 100 / cost_data[i, 1]
+
+    cost_table = pd.DataFrame(cost_data, columns=data_cols)
+
+    cost_table[data_cols[0]] = cost_table[data_cols[0]].astype(int)
+    # cost_table[data_cols[0]] = cost_table[data_cols[0]].apply(r'$|S|=$ {:}'.format)
+    for key in data_cols[1:-1]:
+        cost_table[key] = cost_table[key].apply('{:.2e}'.format)
+
+    cost_table[data_cols[-1]] = cost_table[data_cols[-1]].apply('{:.1f}\%'.format)
+
+    fig1, ax1 = plt.subplots()
+    ax1.axis('off')
+    ax1.axis('tight')
+    table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, cellLoc='center', rowLoc='center', loc='center')
+    table.set_fontsize(12)
+    fig1.tight_layout()
+
+    plt.gcf().canvas.draw()
+    points = table.get_window_extent(plt.gcf()._cachedRenderer).get_points()
+    points[0, :] -= 10
+    points[1, :] += 10
+    nbbox = matplotlib.transforms.Bbox.from_extents(points / plt.gcf().dpi)
+
+    try:
+        fname = 'images/' + values['file_name'] + '_costcomparison.pdf'
+        plt.savefig(fname, format='pdf', bbox_inches=nbbox)
+        print('Plot saved as %s' % fname)
+    except:
+        print('Plot not saved')
+
+    plt.show()
+
+    return None
 
 
 ################################################################

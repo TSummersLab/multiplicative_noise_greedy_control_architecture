@@ -9,13 +9,20 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import MaxNLocator
 
-matplotlib.rcParams['axes.titlesize'] = 10
-matplotlib.rcParams['xtick.labelsize'] = 8
-matplotlib.rcParams['ytick.labelsize'] = 8
+matplotlib.rcParams['axes.titlesize'] = 12
+matplotlib.rcParams['xtick.labelsize'] = 12
+matplotlib.rcParams['ytick.labelsize'] = 12
+matplotlib.rcParams['axes.labelsize'] = 12
+matplotlib.rcParams['legend.fontsize'] = 10
+matplotlib.rcParams['legend.title_fontsize'] = 10
+matplotlib.rcParams['legend.framealpha'] = 0.5
+matplotlib.rcParams['lines.markersize'] = 5
 # matplotlib.rcParams['image.cmap'] = 'Blues'
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['savefig.bbox'] = 'tight'
+matplotlib.rcParams['savefig.format'] = 'pdf'
 
 
 def system_package(A_in, B_in=None, alphai_in=None, Ai_in=None, betaj_in=None, Bj_in=None, Q_in=None, R1_in=None, X0_in=None, label_in=None, print_check=True):
@@ -226,7 +233,7 @@ def sys_to_file(sys_in, f_name=None):
 
     pickle.dump(sys, f_open)
     f_open.close()
-    print('System saved to file @', f_name,'\n')
+    print('System saved to file @', f_name, '\n')
     return None
 
 
@@ -242,7 +249,7 @@ def sys_from_file(f_name='sys_model'):
 
     sys = pickle.load(f_open)
     f_open.close()
-    print('System read from file @', f_name,'\n')
+    print('System read from file @', f_name, '\n')
     return sys
 
 
@@ -264,16 +271,16 @@ def system_display_matrix(sys_in, fname=None):
     a1 = ax1.imshow(sys['A'], extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
     ax1.set_title(r'$A$')
     plt.colorbar(a1, ax=ax1, location='bottom')
-    ax1.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
     if np.sum(sys['B']) > 0:
         ax2 = fig1.add_subplot(gs1[1, 0])
         a2 = ax2.imshow(sys['B'], extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
         ax2.set_title(r'$B$')
         plt.colorbar(a2, ax=ax2, location='bottom')
-        ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-        ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+        ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+        ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
     net_alpha = np.sum(sys['alphai'])
     net_beta = np.sum(sys['betaj'])
@@ -291,8 +298,8 @@ def system_display_matrix(sys_in, fname=None):
             a5 = ax5.imshow(Ai_net, extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
             plt.colorbar(a5, ax=ax5, location='bottom')
             ax5.set_title(r'$\sum \alpha_i A_i$')
-            ax5.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-            ax5.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+            ax5.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+            ax5.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
         if net_beta != 0:
             a4 = ax4.scatter(range(1, len(sys['betaj']) + 1), sys['betaj'], c='C2', marker='2', alpha=0.8, label=r'$\beta_j$')
@@ -304,11 +311,11 @@ def system_display_matrix(sys_in, fname=None):
             a6 = ax6.imshow(Bj_net, extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
             plt.colorbar(a6, ax=ax6, location='bottom')
             ax6.set_title(r'$\sum \beta_j B_j$')
-            ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-            ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+            ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+            ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
-        ax4.xaxis.set_major_locator(MaxNLocator(integer=True, min_n_ticks=max(len(sys['alphai']), len(sys['betaj']))))
-        ax4.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+        ax4.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+        ax4.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
         ax4.legend(markerfirst=False, framealpha=0.2, handlelength=1, labelspacing=0.4, columnspacing=0.5, ncol=ax4_col)
         ax4.set_title('MPL Covariances')
 
@@ -316,24 +323,28 @@ def system_display_matrix(sys_in, fname=None):
     a10 = ax10.imshow(sys['Q'], extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
     ax10.set_title(r'$Q$')
     plt.colorbar(a10, ax=ax10, location='bottom')
-    ax10.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax10.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    ax10.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    ax10.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
     ax11 = fig1.add_subplot(gs1[1, 3])
     a11 = ax11.imshow(sys['R1'], extent=[0.5, nu + 0.5, nu + 0.5, 0.5])
     ax11.set_title(r'$R_1$')
     plt.colorbar(a11, ax=ax11, location='bottom')
-    ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
-    ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2))
+    ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+
+    plt.suptitle(sys['label'])
 
     if fname is None:
-        fname = sys['label']
+        fname = 'images/' + sys['label'] + '.pdf'
+    else:
+        fname = 'images/' + fname + '_' + sys['label'] + '.pdf'
 
     try:
-        plt.suptitle(fname)
-        plt.savefig('images/'+fname+'_system.pdf', format='pdf')
+        plt.savefig(fname, format='pdf')
+        print('Image save @', fname)
     except:
-        print('Incorrect save name/directory')
+        print('Inaccessible save name/directory')
     plt.show()
 
     return None
@@ -356,6 +367,12 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
                 return None
             else:
                 G = netx.generators.random_graphs.erdos_renyi_graph(nx, p)
+        elif type == 'BA':
+            if p is None:
+                print('Specify initial network size for BA-graph')
+                return None
+            else:
+                G = netx.generators.random_graphs.barabasi_albert_graph(nx, p)
         else:
             print('Check network type')
             return None
