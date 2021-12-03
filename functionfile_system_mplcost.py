@@ -1683,8 +1683,8 @@ def plot_random_graph_simulation4(plt_data, parameter_list):
         ax[0, key].plot(x_val, A_median, color='C0', marker='o', alpha=0.7, label='median(A)', linestyle='dashed')
         ax[0, key].plot(x_val, B_median, color='C3', marker='o', alpha=0.7, label='median(B)', linestyle='dashed')
 
-        ax[1, key].plot(x_val, A_check_pass, color='C1', marker='o', label='A', alpha=0.7)
-        ax[1, key].plot(x_val, B_check_pass, color='C2', marker='o', label='B', alpha=0.7)
+        ax[1, key].plot(x_val, A_check_pass, color='C2', marker='o', label='A', alpha=0.7)
+        ax[1, key].plot(x_val, B_check_pass, color='C1', marker='o', label='B', alpha=0.7)
 
         ax[0, key].set_xticks(x_range)
         ax[0, key].xaxis.set_tick_params(labelbottom=False)
