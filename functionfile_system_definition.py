@@ -275,7 +275,7 @@ def system_display_matrix(sys_in, fname=None):
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
     if np.sum(sys['B']) > 0:
-        ax2 = fig1.add_subplot(gs1[1, 0])
+        ax2 = fig1.add_subplot(gs1[0, 1])
         a2 = ax2.imshow(sys['B'], extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
         ax2.set_title(r'$B$')
         plt.colorbar(a2, ax=ax2, location='bottom')
@@ -285,7 +285,7 @@ def system_display_matrix(sys_in, fname=None):
     net_alpha = np.sum(sys['alphai'])
     net_beta = np.sum(sys['betaj'])
     if net_alpha + net_beta > 0:
-        ax4 = fig1.add_subplot(gs1[0, 1])
+        ax4 = fig1.add_subplot(gs1[1, 0])
         ax4_col = 0
 
         if net_alpha != 0:
@@ -294,7 +294,7 @@ def system_display_matrix(sys_in, fname=None):
             Ai_net = np.zeros_like(sys['A'])
             for i in range(0, len(sys['alphai'])):
                 Ai_net += sys['Ai'][i, :, :]*sys['alphai'][i] #/ net_alpha
-            ax5 = fig1.add_subplot(gs1[0, 2])
+            ax5 = fig1.add_subplot(gs1[1, 1])
             a5 = ax5.imshow(Ai_net, extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
             plt.colorbar(a5, ax=ax5, location='bottom')
             ax5.set_title(r'$\sum \alpha_i A_i$')
@@ -307,7 +307,10 @@ def system_display_matrix(sys_in, fname=None):
             Bj_net = np.zeros_like(sys['B'])
             for j in range(0, len(sys['betaj'])):
                 Bj_net += sys['Bj'][j, :, :]*sys['betaj'][j] #/ net_beta
-            ax6 = fig1.add_subplot(gs1[1, 2])
+            if net_alpha != 0:
+                ax6 = fig1.add_subplot(gs1[1, 2])
+            else:
+                ax6 = fig1.add_subplot(gs1[1, 1])
             a6 = ax6.imshow(Bj_net, extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
             plt.colorbar(a6, ax=ax6, location='bottom')
             ax6.set_title(r'$\sum \beta_j B_j$')
@@ -319,21 +322,21 @@ def system_display_matrix(sys_in, fname=None):
         ax4.legend(markerfirst=False, framealpha=0.2, handlelength=1, labelspacing=0.4, columnspacing=0.5, ncol=ax4_col)
         ax4.set_title('MPL Covariances')
 
-    ax10 = fig1.add_subplot(gs1[0, 3])
-    a10 = ax10.imshow(sys['Q'], extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
-    ax10.set_title(r'$Q$')
-    plt.colorbar(a10, ax=ax10, location='bottom')
-    ax10.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
-    ax10.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    # ax10 = fig1.add_subplot(gs1[0, 3])
+    # a10 = ax10.imshow(sys['Q'], extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
+    # ax10.set_title(r'$Q$')
+    # plt.colorbar(a10, ax=ax10, location='bottom')
+    # ax10.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    # ax10.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    #
+    # ax11 = fig1.add_subplot(gs1[1, 3])
+    # a11 = ax11.imshow(sys['R1'], extent=[0.5, nu + 0.5, nu + 0.5, 0.5])
+    # ax11.set_title(r'$R_1$')
+    # plt.colorbar(a11, ax=ax11, location='bottom')
+    # ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
+    # ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
-    ax11 = fig1.add_subplot(gs1[1, 3])
-    a11 = ax11.imshow(sys['R1'], extent=[0.5, nu + 0.5, nu + 0.5, 0.5])
-    ax11.set_title(r'$R_1$')
-    plt.colorbar(a11, ax=ax11, location='bottom')
-    ax11.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
-    ax11.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
-
-    plt.suptitle(sys['label'])
+    # plt.suptitle(sys['label'])
 
     if fname is None:
         fname = 'images/' + sys['label'] + '.pdf'
