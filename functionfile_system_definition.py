@@ -359,6 +359,7 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
     nx = dc(nx_in)
     net_check = True
 
+    G = None
     while net_check:
         if type == 'cycle':
             G = netx.generators.classic.cycle_graph(nx)
@@ -381,6 +382,10 @@ def create_graph(nx_in, type='cycle', p=None, self_loop=True):
             return None
         if netx.algorithms.components.is_connected(G):
             net_check = False
+
+    if G is None:
+        print('Error: Check graph generator')
+        return None
 
     Adj = netx.to_numpy_array(G)
     if self_loop:
