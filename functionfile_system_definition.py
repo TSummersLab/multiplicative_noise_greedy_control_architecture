@@ -270,7 +270,7 @@ def system_display_matrix(sys_in, fname=None):
     ax1 = fig1.add_subplot(gs1[0, 0])
     a1 = ax1.imshow(sys['A'], extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
     ax1.set_title(r'$A$')
-    plt.colorbar(a1, ax=ax1, location='bottom')
+    # plt.colorbar(a1, ax=ax1, location='bottom')
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
@@ -278,7 +278,7 @@ def system_display_matrix(sys_in, fname=None):
         ax2 = fig1.add_subplot(gs1[0, 1])
         a2 = ax2.imshow(sys['B'], extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
         ax2.set_title(r'$B$')
-        plt.colorbar(a2, ax=ax2, location='bottom')
+        # plt.colorbar(a2, ax=ax2, location='bottom')
         ax2.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
         ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
 
@@ -296,7 +296,7 @@ def system_display_matrix(sys_in, fname=None):
                 Ai_net += sys['Ai'][i, :, :]*sys['alphai'][i] #/ net_alpha
             ax5 = fig1.add_subplot(gs1[1, 1])
             a5 = ax5.imshow(Ai_net, extent=[0.5, nx + 0.5, nx + 0.5, 0.5])
-            plt.colorbar(a5, ax=ax5, location='bottom')
+            # plt.colorbar(a5, ax=ax5, location='bottom')
             ax5.set_title(r'$\sum \alpha_i A_i$')
             ax5.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
             ax5.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
@@ -312,7 +312,7 @@ def system_display_matrix(sys_in, fname=None):
             else:
                 ax6 = fig1.add_subplot(gs1[1, 1])
             a6 = ax6.imshow(Bj_net, extent=[0.5, nu + 0.5, nx + 0.5, 0.5])
-            plt.colorbar(a6, ax=ax6, location='bottom')
+            # plt.colorbar(a6, ax=ax6, location='bottom')
             ax6.set_title(r'$\sum \beta_j B_j$')
             ax6.xaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))
             ax6.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=2, min_n_ticks=3))

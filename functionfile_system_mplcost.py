@@ -888,8 +888,8 @@ def plot_simulation_comparison1(values):
     for key in valuesA['costs']:
         # ax3.plot(T_range, valuesA['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
         # ax3.plot(T_range, valuesB['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
-        ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label='A:' + key)
-        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label='B:' + key)
+        ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label=r'Sys_{Nom}:' + key)
+        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label=r'Sys_{MPL}:' + key)
         # ax3.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax3.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
     ax3.set_xlabel(r'$t$')
@@ -932,12 +932,14 @@ def plot_simulation_comparison2(values):
     # ax1.set_xlabel(r'$t$')
     ax1.set_ylabel(r'$J_t$')
     ax1.set_yscale('symlog')
+    # ax1.yaxis.set_major_locator(MaxNLocator(5))
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     for key in valuesA['costs']:
         ax2.plot(T_range, valuesA['costs'][key] - valuesB['costs'][key], alpha=0.5, color='C' + key, label=key)
+    ax2.yaxis.set_major_locator(MaxNLocator(3))
     ax2.set_xlabel(r'$t$')
-    ax2.set_ylabel(r'$J_t$ (A - B)')
+    ax2.set_ylabel(r'$J_t (Sys_{Nom} - Sys_{MPL})$')
     ax2.set_yscale('symlog')
     ax2.legend(ncol=5, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
 
@@ -1100,12 +1102,12 @@ def actuator_comparison(values, disptext=True, figplt=True):
             ax1.set_xlabel(r'$|S|$')
             ax1.set_ylabel('Node number')
             ax1.set_title('Actuator Set comparison')
-            ax1.legend(['A', 'B'])
+            ax1.legend([r'$Sys_{Nom}$', r'$Sys_{MPL}$'])
         else:
             if disptext:
-                print('System A', ' B:\n', SA['B'])
-                print('System B', ' B:\n', SB['B'])
-                print('B diff (%s - %s):' % (SA['label'], SB['label']))
+                print(r'System $Sys_{Nom}$', ' B:\n', SA['B'])
+                print(r'System $Sys_{MPL}$', ' B:\n', SB['B'])
+                print('B diff :')
                 print(SA['B'] - SB['B'])
 
     # print(SA['label'], ' B:\n', SA['B'])
@@ -1729,7 +1731,7 @@ def plot_random_graph_simulation4(plt_data, parameter_list):
 ################################################################
 
 def cost_comparison_print(values):
-    data_cols = [r"$|S|$", r"$A$", r"$B$", r"$A-B$", r"$\frac{A-B}{A} \times 100$"]
+    data_cols = [r"$|S|$", r"$Sys_{Nom}$", r"$Sys_{MPL}$", r"$Sys_{Nom}-Sys_{MPL}$", r"$\% Cost Improvement$"]
     cost_data = np.zeros((len(values['T_A']['costs']), len(data_cols)))
 
     for i in range(0, len(values['T_A']['costs'])):
@@ -1751,7 +1753,7 @@ def cost_comparison_print(values):
     ax1.axis('off')
     ax1.axis('tight')
     table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, cellLoc='center', rowLoc='center', loc='center')
-    table.set_fontsize(12)
+    table.set_fontsize(15)
     fig1.tight_layout()
 
     plt.gcf().canvas.draw()
