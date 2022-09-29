@@ -338,10 +338,10 @@ def system_display_matrix(sys_in, fname=None):
 
     # plt.suptitle(sys['label'])
 
-    if fname is None:
-        fname = 'images/' + sys['label'] + '.pdf'
-    else:
-        fname = 'images/' + fname + '_' + sys['label'] + '.pdf'
+        if fname is None:
+            fname = 'images/' + sys['label'] + '.pdf'
+        else:
+            fname = 'images/' + fname + '_' + sys['label'] + '.pdf'
 
     try:
         plt.savefig(fname, format='pdf')
@@ -418,6 +418,7 @@ def matrix_splitter(A):
     # print(np.shape(A_split))
 
     return A_split
+
 
 #####################################################
 

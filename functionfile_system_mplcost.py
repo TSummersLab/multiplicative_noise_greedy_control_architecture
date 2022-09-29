@@ -1,4 +1,5 @@
 import numpy as np
+import networkx as netx
 
 import pickle
 
@@ -6,7 +7,8 @@ import pandas as pd
 
 from copy import deepcopy as dc
 
-from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, system_package, matrix_splitter
+from functionfile_system_definition import actuator_matrix_to_list, actuator_list_to_matrix, system_check, create_graph, \
+    system_package, matrix_splitter
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -319,7 +321,8 @@ def actuator_selection_cost_2(sys_in, nu_2=None, initial_values=None):
         for k in range(0, len(sys_return['betaj'])):
             sys_return['Bj'][k] = B
 
-    return_values = {'system': sys_return, 'cost_trend': cost_record, 'time_trend': time_record, 'check_trend': check_record}
+    return_values = {'system': sys_return, 'cost_trend': cost_record, 'time_trend': time_record,
+                     'check_trend': check_record}
     # sys: system with actuator selection
     # cost_trend: change in costs with selection of actuators
     # time_trend: change in time till convergence cost
@@ -633,7 +636,7 @@ def simulation_core(sys_in, feedback, initial_values=None):
 
         if np.abs(cost_trajectory[t + 1]) > initial_values['P_max']:
             print('====> Breaking current simulation at t= %s as cumulative cost magnitude exceed %.0e' % (
-            t, initial_values['P_max']))
+                t, initial_values['P_max']))
             break
 
     return_values = {'states': state_trajectory, 'costs': cost_trajectory, 'control': control_effort}
@@ -889,7 +892,8 @@ def plot_simulation_comparison1(values):
         # ax3.plot(T_range, valuesA['costs'][key], marker='o', markeredgewidth=0.5, alpha=0.5, color='C'+key)
         # ax3.plot(T_range, valuesB['costs'][key], marker='x', markeredgewidth=0.5, alpha=0.5, color='C'+key)
         ax3.plot(T_range, valuesA['costs'][key], linewidth=1, alpha=0.5, color='C' + key, label=r'Sys_{Nom}:' + key)
-        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key, label=r'Sys_{MPL}:' + key)
+        ax3.plot(T_range, valuesB['costs'][key], ls='-.', linewidth=2, alpha=0.5, color='C' + key,
+                 label=r'Sys_{MPL}:' + key)
         # ax3.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax3.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
     ax3.set_xlabel(r'$t$')
@@ -1697,7 +1701,8 @@ def plot_random_graph_simulation4(plt_data, parameter_list):
         ax[1, key].xaxis.set_major_locator(MaxNLocator(nbins=5, min_n_ticks=4, integer=True))
         ax[1, key].set_ylim(-0.1, 1.1)
         ax[1, key].grid(color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
-        ax[1, key].grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5, alpha=0.5)
+        ax[1, key].grid(visible=True, which='both', axis='both', color='k', linestyle='dotted', linewidth=0.5,
+                        alpha=0.5)
         ax[1, key].set_yticks(y_tick_vals)
 
     h, l = ax[0, 0].get_legend_handles_labels()
@@ -1709,9 +1714,10 @@ def plot_random_graph_simulation4(plt_data, parameter_list):
     ax[1, 0].set_xlabel(r'$|S|$')
     ax[1, 0].set_ylabel('Control Pass Fraction \n(' + str(plt_data[0]['N_test']) + ' Realizations)')
 
-    fig1.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 0.04), ncol=int(len(handles)/2))
+    fig1.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, 0.04), ncol=int(len(handles) / 2))
 
-    fname = 'images/MPL_' + str(plt_data[0]['N_test']) + '_' + plt_data[0]['network_type'] + '_' + str(plt_data[0]['rho']) + '_' + parameter_list['p_type'] + '_'
+    fname = 'images/MPL_' + str(plt_data[0]['N_test']) + '_' + plt_data[0]['network_type'] + '_' + str(
+        plt_data[0]['rho']) + '_' + parameter_list['p_type'] + '_'
     for i in range(0, len(parameter_list['p_list'])):
         fname += str(parameter_list['p_list'][i])
         if i + 1 < len(parameter_list['p_list']):
@@ -1735,7 +1741,7 @@ def cost_comparison_print(values):
     cost_data = np.zeros((len(values['T_A']['costs']), len(data_cols)))
 
     for i in range(0, len(values['T_A']['costs'])):
-        cost_data[i, 0] = i+1
+        cost_data[i, 0] = i + 1
         cost_data[i, 1] = values['T_A']['costs'][str(i + 1)][-1]
         cost_data[i, 2] = values['T_B']['costs'][str(i + 1)][-1]
         cost_data[i, 3] = cost_data[i, 1] - cost_data[i, 2]
@@ -1752,7 +1758,8 @@ def cost_comparison_print(values):
     fig1, ax1 = plt.subplots()
     ax1.axis('off')
     ax1.axis('tight')
-    table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, cellLoc='center', rowLoc='center', loc='center')
+    table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, cellLoc='center', rowLoc='center',
+                      loc='center')
     table.set_fontsize(15)
     fig1.tight_layout()
 
@@ -1772,6 +1779,118 @@ def cost_comparison_print(values):
     plt.show()
 
     return None
+
+
+################################################################
+
+
+def system_display_network1(S_NOM_in, S_MPL_in, S_True_in, fname=None):
+    S_NOM = dc(S_NOM_in)
+    S_MPL = dc(S_MPL_in)
+    S_True = dc(S_True_in)
+
+    nx = np.shape(S_NOM['A'])[0]
+    nu = np.shape(S_NOM['B'])[1]
+    # nv = np.shape(sys['F'])[1]
+
+    node_labels = {}
+    inner_shell = []
+    outer_shell = []
+
+    state_colors = []
+    actuator_colors = []
+
+    for i in range(0, nx):
+        node_labels[i] = str(i + 1)
+        inner_shell.append(str(i + 1))
+        state_colors.append('C2')
+    # print(inner_shell)
+    for i in range(0, nx):
+        node_labels[nx + i] = 'B' + str(i + 1)
+        outer_shell.append('B' + str(i + 1))
+        actuator_colors.append('C1')
+    # print(outer_shell)
+
+    G_ANom = netx.from_numpy_array(S_NOM['A'])
+    G_ANom = netx.relabel_nodes(G_ANom, node_labels, copy=False)
+
+    Ai_net = np.zeros_like(S_MPL['A'])
+    for i in range(0, len(S_MPL['alphai'])):
+        Ai_net += S_MPL['Ai'][i, :, :] * S_MPL['alphai'][i]  # / net_alpha
+    G_AiMPL = netx.from_numpy_array(Ai_net)
+    G_AiMPL = netx.relabel_nodes(G_AiMPL, node_labels, copy=False)
+
+    G_ATrue = netx.from_numpy_array(S_True['A'])
+    G_ATrue = netx.relabel_nodes(G_ATrue, node_labels, copy=False)
+
+    AiTrue_net = np.zeros_like(S_MPL['A'])
+    for i in range(0, len(S_True['alphai'])):
+        AiTrue_net += S_True['Ai'][i, :, :] * S_True['alphai'][i]  # / net_alpha
+    G_AiTrue = netx.from_numpy_array(AiTrue_net)
+    G_AiTrue = netx.relabel_nodes(G_AiTrue, node_labels, copy=False)
+
+    AB_Nom = np.block([[np.zeros_like(S_NOM['A']), S_NOM['B']], [S_NOM['B'].T, np.zeros_like(S_NOM['A'])]])
+    G_Nom = netx.from_numpy_array(AB_Nom)
+    G_Nom = netx.relabel_nodes(G_Nom, node_labels, copy=False)
+
+    AB_MPL = np.block([[np.zeros_like(S_MPL['A']), S_MPL['B']], [S_MPL['B'].T, np.zeros_like(S_MPL['A'])]])
+    G_MPL = netx.from_numpy_array(AB_MPL)
+    G_MPL = netx.relabel_nodes(G_MPL, node_labels, copy=False)
+
+    pos_G_initials = netx.circular_layout(G_ANom)
+    # pos_G_states = netx.circle_layout(G_ANom)
+    pos_GNom = netx.spring_layout(G_Nom, k=1.5*1/np.sqrt(nx), pos=pos_G_initials, fixed=list(G_ANom.nodes()))
+    pos_GMPL = netx.spring_layout(G_MPL, k=1.5*1/np.sqrt(nx), pos=pos_G_initials, fixed=list(G_ANom.nodes()))
+
+    if fname is None:
+        savename1 = 'images/' + S_NOM['label'] + S_MPL['label'] + S_True['label'] + '_systems.pdf'
+        savename2 = 'images/' + S_NOM['label'] + S_MPL['label'] + S_True['label'] + '_actuators.pdf'
+    else:
+        savename1 = 'images/' + fname + '_' + S_NOM['label'] + S_MPL['label'] + S_True['label'] + 'systems.pdf'
+        savename2 = 'images/' + fname + '_' + S_NOM['label'] + S_MPL['label'] + S_True['label'] + 'actuators.pdf'
+
+    fig1 = plt.figure(layout='constrained')
+    gs1 = GridSpec(2, 2, figure=fig1)
+
+    ax1 = plt.subplot(gs1[0, 1], aspect='equal')
+    netx.draw(G_ANom, pos=pos_GNom, ax=ax1, with_labels=True, node_color=state_colors, node_size=400, font_size=13)
+    ax1.set_title("Model "+r"$A$")
+
+    ax2 = plt.subplot(gs1[1, 1], aspect='equal')
+    netx.draw(G_AiMPL, pos=pos_GNom, ax=ax2, with_labels=True, node_color=state_colors, node_size=400, font_size=13)
+    ax2.set_title("Model " + r"$\sum \alpha_i A_i$")
+
+    ax3 = plt.subplot(gs1[0, 0], aspect='equal')
+    netx.draw(G_ATrue, pos=pos_GNom, ax=ax3, with_labels=True, node_color=state_colors, node_size=400, font_size=13)
+    ax3.set_title("True "+r"$A$")
+
+    ax4 = plt.subplot(gs1[1, 0], aspect='equal')
+    netx.draw(G_AiTrue, pos=pos_GNom, ax=ax4, with_labels=True, node_color=state_colors, node_size=400, font_size=13)
+    ax4.set_title("True " + r"$\sum \alpha_i A_i$")
+
+    try:
+        plt.savefig(savename1, format='pdf')
+        print('Image save @', savename1)
+    except:
+        print('Inaccessible save name/directory')
+
+    fig2 = plt.figure(layout='constrained')
+    gs2 = GridSpec(1, 2, figure=fig2)
+
+    ax5 = plt.subplot(gs2[0, 0], aspect='equal')
+    netx.draw(G_Nom, pos=pos_GNom, ax=ax5, with_labels=True, node_color=state_colors + actuator_colors, node_size=400, font_size=13)
+    ax5.set_title("Nominal "+r"$B$")
+
+    ax6 = plt.subplot(gs2[0, 1], aspect='equal')
+    netx.draw(G_MPL, pos=pos_GMPL, ax=ax6, with_labels=True, node_color=state_colors + actuator_colors, node_size=400, font_size=13)
+    ax6.set_title("MPL "+r"$B$")
+
+    try:
+        plt.savefig(savename2, format='pdf', figure=fig2)
+        print('Image save @', savename2)
+    except:
+        print('Inaccessible save name/directory')
+    plt.show()
 
 
 ################################################################
