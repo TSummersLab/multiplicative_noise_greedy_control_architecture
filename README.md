@@ -16,3 +16,6 @@ We propose a greedy algorithm for actuator selection considering multiplicative 
     - Visualizer for test data from Statistical Test File
 - [ModelFiles](ModelFiles.ipynb)
     - Generate test models for [Model Test File](ActuatorSelection_Test3_2.ipynb)
+- Function Files
+    - [System Definition](functionfile_system_definition.py)
+    - [Cost Calculation and Actuator Selection](functionfile_system_mplcost.py)
