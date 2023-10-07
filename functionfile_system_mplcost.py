@@ -17,7 +17,7 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.transforms
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, SymmetricalLogLocator
 
 matplotlib.rcParams['axes.titlesize'] = 12
 matplotlib.rcParams['xtick.labelsize'] = 12
@@ -934,18 +934,22 @@ def plot_simulation_comparison2(values):
         # ax1.plot(T_range, valuesA['costs'][key], ls=':', marker='x', alpha=0.5, color='C' + key)
         # ax1.plot(T_range, valuesB['costs'][key], alpha=0.5, color='C' + key)
     # ax1.set_xlabel(r'$t$')
-    ax1.set_ylabel(r'$J_t$')
+    ax1.set_ylabel(r'$J_t$', fontsize=15)
     ax1.set_yscale('symlog')
     # ax1.yaxis.set_major_locator(MaxNLocator(5))
+    ax1.legend(handles=[mlines.Line2D([], [], color='C0', label='Nom'), mlines.Line2D([], [], color='C0', linestyle='-.', label='MPL')], ncol=2, loc='lower right', title='Model Type')
 
     ax2 = fig1.add_subplot(gs1[1, 0], sharex=ax1)
     for key in valuesA['costs']:
         ax2.plot(T_range, valuesA['costs'][key] - valuesB['costs'][key], alpha=0.5, color='C' + key, label=key)
-    ax2.yaxis.set_major_locator(MaxNLocator(3))
-    ax2.set_xlabel(r'$t$')
-    ax2.set_ylabel(r'$J_t (Sys_{Nom} - Sys_{MPL})$')
+    ax2.set_xlabel(r'$t$', fontsize=15)
+    ax2.set_ylabel(r'$J_t (Sys_{Nom} - Sys_{MPL})$', fontsize=15)
     ax2.set_yscale('symlog')
-    ax2.legend(ncol=5, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+    # ax2.yaxis.set_major_locator(MaxNLocator(nbins='Auto'))
+    # ax2.locator_params(axis='y', nbins=7)
+    ax2.yaxis.set_major_locator(SymmetricalLogLocator(linthresh=2, base=100))
+    # ax2.legend(ncol=5, loc='upper center', bbox_to_anchor=(0.5, -0.5), title=r'$|S|$')
+    ax2.legend(ncol=5, loc='lower right', title=r'$|S|$')
 
     try:
         fname = 'images/' + values['file_name'] + '_comparison2.pdf'
@@ -1755,23 +1759,22 @@ def cost_comparison_print(values):
 
     cost_table[data_cols[-1]] = cost_table[data_cols[-1]].apply('{:.1f}\%'.format)
 
-    fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots(layout="tight")
     ax1.axis('off')
     ax1.axis('tight')
-    table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, cellLoc='center', rowLoc='center',
-                      loc='center')
-    table.set_fontsize(15)
-    fig1.tight_layout()
+    table = ax1.table(cellText=cost_table.values, colLabels=cost_table.columns, colWidths=[0.2, 0.3, 0.3, 0.4, 0.4], cellLoc='center', rowLoc='center', loc='center', fontsize=30)
+    # fig1.tight_layout()
 
-    plt.gcf().canvas.draw()
-    points = table.get_window_extent(plt.gcf()._cachedRenderer).get_points()
-    points[0, :] -= 10
-    points[1, :] += 10
-    nbbox = matplotlib.transforms.Bbox.from_extents(points / plt.gcf().dpi)
+    # plt.gcf().canvas.draw()
+    # points = table.get_window_extent(plt.gcf()._cachedRenderer).get_points()
+    # points[0, :] -= 10
+    # points[1, :] += 10
+    # nbbox = matplotlib.transforms.Bbox.from_extents(points / plt.gcf().dpi)
 
     try:
         fname = 'images/' + values['file_name'] + '_costcomparison.pdf'
-        plt.savefig(fname, format='pdf', bbox_inches=nbbox)
+        # plt.savefig(fname, format='pdf', bbox_inches=nbbox)
+        plt.savefig(fname, format='pdf', bbox_inches='tight')
         print('Plot saved as %s' % fname)
     except:
         print('Plot not saved')
